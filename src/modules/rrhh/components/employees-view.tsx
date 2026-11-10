@@ -1,0 +1,64 @@
+"use client";
+
+import { useApp } from "@/components/app-provider";
+import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
+import { Badge, type BadgeTone } from "@/components/ui";
+import type { Employee } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
+
+const STATUS: Record<Employee["status"], { label: string; tone: BadgeTone }> = {
+  activo: { label: "Activo", tone: "green" },
+  vacaciones: { label: "Vacaciones", tone: "amber" },
+  licencia: { label: "Licencia", tone: "blue" },
+  cesado: { label: "Cesado", tone: "neutral" },
+};
+
+type Option = { value: string; label: string };
+
+export function EmployeesView({ rows, branches, today }: { rows: Employee[]; branches: Option[]; today: string }) {
+  const { money } = useApp();
+  const branchName = (id: string | null) => branches.find((b) => b.value === id)?.label ?? "—";
+
+  const columns: Column<Employee>[] = [
+    {
+      header: "Colaborador",
+      cell: (e) => (
+        <div>
+          <p className="font-medium text-slate-900">{e.full_name}</p>
+          <p className="tabular text-xs text-slate-500">Doc. {e.doc_number}</p>
+        </div>
+      ),
+    },
+    { header: "Cargo", cell: (e) => e.position },
+    { header: "Sucursal", cell: (e) => branchName(e.branch_id) },
+    { header: "Ingreso", cell: (e) => <span className="tabular">{formatDate(e.hire_date)}</span> },
+    { header: "Sueldo", align: "right", cell: (e) => money(e.salary) },
+    { header: "Estado", cell: (e) => <Badge tone={STATUS[e.status].tone}>{STATUS[e.status].label}</Badge> },
+  ];
+
+  const fields: FieldDef[] = [
+    { name: "full_name", label: "Nombre completo", required: true, wide: true, maxLength: 160 },
+    { name: "doc_number", label: "Documento de identidad", required: true, maxLength: 20 },
+    { name: "position", label: "Cargo", required: true, maxLength: 80 },
+    { name: "branch_id", label: "Sucursal", type: "select", options: branches },
+    { name: "status", label: "Estado", type: "select", required: true, defaultValue: "activo", options: Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label })) },
+    { name: "salary", label: "Sueldo mensual", type: "number", required: true, defaultValue: "0" },
+    { name: "hire_date", label: "Fecha de ingreso", type: "date", required: true, defaultValue: today },
+    { name: "phone", label: "Teléfono", type: "tel", maxLength: 30 },
+    { name: "email", label: "Correo", type: "email" },
+  ];
+
+  return (
+    <ResourceManager
+      entity="employees"
+      module="rrhh"
+      singular="colaborador"
+      rows={rows}
+      columns={columns}
+      fields={fields}
+      getId={(e) => e.id}
+      searchText={(e) => `${e.full_name} ${e.doc_number} ${e.position}`}
+      searchPlaceholder="Buscar por nombre, documento o cargo…"
+    />
+  );
+}

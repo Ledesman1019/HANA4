@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+/* Tema oscuro por clase en <html> (lo fija un script antes del primer pintado) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* ---------------------------------------------------------------------
+   Tokens del sistema de diseño.
+   Las utilidades de Tailwind leen estas variables, así que el modo
+   oscuro solo las redefine: ningún componente necesita clases "dark:".
+   --------------------------------------------------------------------- */
+@theme {
+  /* Marca */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe6fe;
+  --color-brand-200: #bfd3fe;
+  --color-brand-500: #3b6ef6;
+  --color-brand-600: #2554eb;
+  --color-brand-700: #1d41d8;
+
+  /* Superficies y texto con rol fijo */
+  --color-app: #f4f6f9; /* fondo de la aplicación */
+  --color-surface: #ffffff; /* tarjetas, modales, campos */
+  --color-ink: #0e1321; /* bloques siempre oscuros */
+  --color-link: #1d41d8; /* texto de acento sobre superficies */
+
+  /* Menú lateral */
+  --color-menu: #0e1321;
+  --color-menu-text: #aab2c2;
+  --color-menu-muted: #6c7485;
+  --color-menu-active: #1a2233;
+  --color-menu-border: #1b2232;
+
+  /* Botones de estado: iguales en claro y oscuro (texto blanco encima) */
+  --color-ok: #059669;
+  --color-ok-hover: #047857;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 12px 32px -8px rgb(16 24 40 / 0.18), 0 2px 6px rgb(16 24 40 / 0.06);
+}
+
+:root {
+  --chart-series: #2554eb;
+  --chart-axis: #64748b;
+  --chart-grid: #e2e8f0;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-app: #0b0e14;
+  --color-surface: #12161f;
+  --color-ink: #080a10;
+  --color-link: #8fb2ff;
+
+  --color-menu: #080a10;
+  --color-menu-text: #a4aab8;
+  --color-menu-muted: #666c7d;
+  --color-menu-active: #151a25;
+  --color-menu-border: #151923;
+
+  /* Escala neutra invertida: 50 = superficie sutil … 900 = texto principal */
+  --color-slate-50: #161a24;
+  --color-slate-100: #1c212c;
+  --color-slate-200: #232836;
+  --color-slate-300: #2e3444;
+  --color-slate-400: #6b7284;
+  --color-slate-500: #979dac;
+  --color-slate-600: #b4bac6;
+  --color-slate-700: #c7cbd5;
+  --color-slate-800: #dfe2e9;
+  --color-slate-900: #eceef3;
+
+  /* Tintes: fondos translúcidos y texto aclarado */
+  --color-brand-50: rgb(59 110 246 / 0.14);
+  --color-brand-100: rgb(59 110 246 / 0.22);
+  --color-brand-200: rgb(59 110 246 / 0.36);
+
+  --color-emerald-50: rgb(52 211 153 / 0.12);
+  --color-emerald-200: rgb(52 211 153 / 0.3);
+  --color-emerald-500: #34d399;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+
+  --color-red-50: rgb(248 113 113 / 0.12);
+  --color-red-200: rgb(248 113 113 / 0.3);
+  --color-red-500: #f87171;
+  --color-red-600: #f87171;
+  --color-red-700: #fca5a5;
+
+  --color-amber-50: rgb(251 191 36 / 0.12);
+  --color-amber-200: rgb(251 191 36 / 0.3);
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fcd34d;
+
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-pop: 0 16px 40px -8px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04);
+
+  --chart-series: #5b8cff;
+  --chart-axis: #979dac;
+  --chart-grid: #232836;
+}
+
+/* Las listas nativas de <select> también en oscuro (Windows no siempre lo respeta) */
+.dark :is(option, optgroup) {
+  background-color: #12161f;
+  color: #eceef3;
+}
+
+body {
+  background: var(--color-app);
+  color: var(--color-slate-900);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+:is(h1, h2, h3) {
+  letter-spacing: -0.015em;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-slate-300) transparent;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-brand-500) 24%, transparent);
+}
+
+/* Cifras alineadas en tablas y totales */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Campos numéricos sin flechas */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ---------- Modales y menús ---------- */
+dialog::backdrop {
+  background: rgb(8 10 16 / 0.55);
+  backdrop-filter: blur(3px);
+}
+
+dialog[open] {
+  animation: pop-in 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pop-in {
+  animation: pop-in 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: top right;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+/* Línea de escaneo del lector por cámara */
+@keyframes scan-line {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(calc(100% - 2px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Impresión de comprobantes (siempre en claro) ---------- */
+@media print {
+  html {
+    color-scheme: light;
+  }
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    max-width: 80mm !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-area * {
+    color: #000 !important;
+    border-color: #999 !important;
+  }
+}
