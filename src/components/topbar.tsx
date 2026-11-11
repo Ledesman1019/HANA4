@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { changePassword, logout, setBranch } from "@/modules/auth/actions";
 import type { AlertItem } from "@/app/api/alerts/route";
 import type { SearchGroup } from "@/app/api/search/route";
-import { navFor } from "@/lib/modules";
+import { destinationsFor, navFor } from "@/lib/modules";
 import { playSound, setSoundEnabled, soundEnabled, subscribeSound } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useApp } from "./app-provider";
@@ -47,6 +47,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const [switching, startSwitch] = useTransition();
 
   const modules = useMemo(() => navFor(profile.role, permissions), [profile.role, permissions]);
+  const destinations = useMemo(() => destinationsFor(profile.role, permissions), [profile.role, permissions]);
   const canSwitch = canSwitchBranch && branches.length > 1;
   const toggle = (name: Exclude<MenuName, null>) => setMenu((current) => (current === name ? null : name));
 
@@ -133,9 +134,15 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   }
 
   const q = query.trim().toLowerCase();
-  const moduleHits = q ? modules.filter((m) => m.label.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q)).slice(0, 4) : [];
+  // Módulos y pantallas por nombre o por código de transacción (VA01, ME21N…); el código exacto va primero
+  const moduleHits = q
+    ? destinations
+        .filter((m) => m.code.toLowerCase().startsWith(q) || m.label.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q))
+        .sort((a, b) => Number(b.code.toLowerCase() === q) - Number(a.code.toLowerCase() === q))
+        .slice(0, 5)
+    : [];
   const allGroups: SearchGroup[] = [
-    ...(moduleHits.length ? [{ label: "Módulos", items: moduleHits.map((m) => ({ title: m.label, subtitle: m.desc, href: m.href })) }] : []),
+    ...(moduleHits.length ? [{ label: "Módulos", items: moduleHits.map((m) => ({ title: m.label, subtitle: `${m.code} · ${m.desc}`, href: m.href })) }] : []),
     ...groups,
   ];
   const flat = allGroups.flatMap((g) => g.items);
@@ -187,7 +194,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
                 go(flat[active].href);
               }
             }}
-            placeholder="Buscar productos, clientes o comprobantes…"
+            placeholder="Buscar productos, clientes, comprobantes o código (VA01)…"
             aria-label="Búsqueda global"
             autoComplete="off"
             className="h-11 w-full rounded-full border border-transparent bg-slate-100 pl-11 pr-16 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-brand-500 focus:bg-surface focus:outline-none focus:ring-4 focus:ring-brand-500/15 [&::-webkit-search-cancel-button]:hidden"
@@ -333,6 +340,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
                 <dl className="mt-3 space-y-2.5 text-xs text-slate-600">
                   {[
                     ["Ctrl K", "Buscar en todo el sistema"],
+                    ["VA01", "Escribe un código de transacción en el buscador y pulsa Enter para ir directo (VA01 vender, MMBE stock, ME21N nueva compra…)"],
                     ["Enter", "En el punto de venta, agrega el producto escaneado o buscado"],
                     ["Esc", "Cierra ventanas y menús"],
                   ].map(([key, text]) => (
@@ -368,6 +376,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
                             <Icon className="h-[18px] w-[18px]" />
                           </span>
                           <span className="text-[11px] font-semibold leading-tight text-slate-700">{m.label}</span>
+                          <span className="tabular -mt-1 font-mono text-[10px] text-slate-400">{m.code}</span>
                         </Link>
                       </li>
                     );

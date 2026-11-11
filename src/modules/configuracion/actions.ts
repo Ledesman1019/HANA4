@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { logAudit } from "@/lib/audit";
 import { DENIED, fail, friendlyError, getContext, success } from "@/lib/auth";
 import { MODULES } from "@/lib/modules";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -46,17 +47,18 @@ const newUserSchema = z.object({
 
 /** Alta de usuario por un administrador (no existe auto-registro). */
 export async function createUser(values: Record<string, unknown>): Promise<ActionResult> {
-  const { supabase, profile, branches, can } = await getContext();
+  const ctx = await getContext();
+  const { supabase, profile, branches, can } = ctx;
   if (!can("configuracion", "edit")) return fail(DENIED);
 
   const parsed = newUserSchema.safeParse({ ...values, email: String(values.email ?? "").trim().toLowerCase() });
   if (!parsed.success) return fail(firstIssue(parsed.error));
   const u = parsed.data;
   if (!branches.some((b) => b.id === u.branch_id)) return fail("Sucursal inválida");
-  if (u.role === "admin" && profile.role !== "admin") return fail("Solo un administrador puede crear otro administrador");
+  if (u.role === "admin" && !profile.is_super) return fail("Solo un Super Administrador puede crear administradores");
 
-  const { data: role } = await supabase.from("roles").select("id").eq("id", u.role).maybeSingle();
-  if (!role) return fail("El rol seleccionado no existe");
+  const { data: roleRow } = await supabase.from("roles").select("id, name").eq("id", u.role).maybeSingle();
+  if (!roleRow) return fail("El rol seleccionado no existe");
 
   const admin = createAdminClient();
   if (!admin) return fail("Falta la variable SUPABASE_SERVICE_ROLE_KEY en el servidor");
@@ -86,6 +88,7 @@ export async function createUser(values: Record<string, unknown>): Promise<Actio
     await admin.auth.admin.deleteUser(created.user.id);
     return fail("No se pudo asignar el rol al usuario. Inténtalo de nuevo");
   }
+  await logAudit(ctx, "usuario.creacion", "usuario", created.user.id, `Creó la cuenta de ${u.full_name} (${u.email}) con el rol ${roleRow.name}`);
   revalidatePath("/", "layout");
   return success(undefined);
 }
@@ -96,6 +99,8 @@ const updateUserSchema = z.object({
   role: roleId,
   branch_id: z.uuid("Selecciona una sucursal"),
   active: z.boolean(),
+  /** Solo lo puede cambiar un Super Administrador */
+  is_super: z.boolean().optional(),
 });
 
 export async function updateUser(values: z.input<typeof updateUserSchema>): Promise<ActionResult> {
@@ -104,18 +109,45 @@ export async function updateUser(values: z.input<typeof updateUserSchema>): Prom
 
   const parsed = updateUserSchema.safeParse(values);
   if (!parsed.success) return fail(firstIssue(parsed.error));
-  const { id, ...changes } = parsed.data;
+  const { id, is_super, ...rest } = parsed.data;
 
   // Nadie cambia su propio rol ni se desactiva a sí mismo.
-  if (id === userId && (changes.role !== profile.role || !changes.active)) {
-    return fail("No puedes cambiar tu propio rol ni desactivar tu cuenta. Pídeselo a otro administrador");
+  if (id === userId && (rest.role !== profile.role || !rest.active || (is_super !== undefined && is_super !== profile.is_super))) {
+    return fail("No puedes cambiar tu propio rol, nivel ni desactivar tu cuenta. Pídeselo a otro Super Administrador");
   }
 
-  // La base de datos además impide tocar administradores sin serlo y dejar el sistema sin ninguno.
+  // El nivel Super solo viaja si quien edita es Super Administrador y el rol es Administrador.
+  const changes = profile.is_super && is_super !== undefined ? { ...rest, is_super: is_super && rest.role === "admin" } : rest;
+
+  // La base de datos vuelve a exigirlo: solo un Super Administrador toca administradores,
+  // y nunca puede quedar el sistema sin uno. Cada cambio queda en la auditoría.
   const { data, error } = await supabase.from("profiles").update(changes).eq("id", id).select("id");
   if (error) return fail(friendlyError(error));
   if (!data?.length) return fail("No tienes permiso para modificar a este usuario");
   revalidatePath("/", "layout");
+  return success(undefined);
+}
+
+/** Restablece la contraseña de un usuario (por ejemplo, si la olvidó). Queda en la auditoría. */
+export async function resetUserPassword(id: string, password: string): Promise<ActionResult> {
+  const ctx = await getContext();
+  if (!ctx.can("configuracion", "edit")) return fail(DENIED);
+  if (!z.uuid().safeParse(id).success) return fail("Usuario inválido");
+  if (typeof password !== "string" || password.length < 8 || password.length > 72) return fail("La contraseña debe tener al menos 8 caracteres");
+  if (id === ctx.userId) return fail("Para tu propia cuenta usa «Cambiar contraseña» en el menú de usuario");
+
+  const { data: target } = await ctx.supabase.from("profiles").select("full_name, role").eq("id", id).maybeSingle();
+  if (!target) return fail("Usuario no encontrado");
+  if (target.role === "admin" && !ctx.profile.is_super) return fail("Solo un Super Administrador puede restablecer la contraseña de un administrador");
+
+  const admin = createAdminClient();
+  if (!admin) return fail("Falta la variable SUPABASE_SERVICE_ROLE_KEY en el servidor");
+  const { error } = await admin.auth.admin.updateUserById(id, { password });
+  if (error) {
+    console.error("[resetUserPassword]", error);
+    return fail("No se pudo restablecer la contraseña");
+  }
+  await logAudit(ctx, "usuario.contrasena", "usuario", id, `Restableció la contraseña de ${target.full_name}`);
   return success(undefined);
 }
 

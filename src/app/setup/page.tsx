@@ -12,7 +12,13 @@ import { SetupForm } from "@/modules/auth/components/setup-form";
 export const metadata: Metadata = { title: "Instalación" };
 
 /** Versión de esquema que necesita esta versión de la aplicación. */
-const REQUIRED_SCHEMA = 2;
+const REQUIRED_SCHEMA = 4;
+
+const UPDATES: [version: number, file: string, what: string][] = [
+  [2, "0002_roles_permisos_imagenes.sql", "roles con permisos, fotos de producto y carga más rápida"],
+  [3, "0003_facturacion_demo.sql", "facturación electrónica en modo demo"],
+  [4, "0004_superadmin_auditoria_comisiones.sql", "Super Administrador, registro de auditoría y comisiones de venta"],
+];
 
 export default function SetupPage() {
   return (
@@ -48,13 +54,15 @@ async function Setup() {
   let baseReady = false;
   let upToDate = false;
   let needsSetup = false;
+  let version = 1;
 
   if (hasSupabaseEnv) {
     const supabase = await createClient();
-    const [setup, version] = await Promise.all([supabase.rpc("needs_setup"), supabase.rpc("schema_version")]);
+    const [setup, schema] = await Promise.all([supabase.rpc("needs_setup"), supabase.rpc("schema_version")]);
     baseReady = !setup.error;
     needsSetup = setup.data === true;
-    upToDate = !version.error && Number(version.data) >= REQUIRED_SCHEMA;
+    version = schema.error ? 1 : Number(schema.data);
+    upToDate = version >= REQUIRED_SCHEMA;
     if (baseReady && upToDate && !needsSetup) redirect("/login");
   }
 
@@ -88,10 +96,14 @@ async function Setup() {
           </p>
         </Step>
         <Step done={upToDate} title="4. Actualizar la base de datos">
-          <p>
-            En Supabase → SQL Editor, pega y ejecuta <span className={code}>supabase/migrations/0002_roles_permisos_imagenes.sql</span>. Agrega los roles con
-            permisos, las fotos de producto y acelera la carga. No borra datos.
-          </p>
+          <p>En Supabase → SQL Editor, pega y ejecuta estos archivos de la carpeta supabase/migrations, en orden. No borran datos.</p>
+          <ul className="list-disc space-y-1 pl-5">
+            {UPDATES.filter(([v]) => v > version).map(([v, file, what]) => (
+              <li key={v}>
+                <span className={code}>{file}</span> — {what}
+              </li>
+            ))}
+          </ul>
         </Step>
       </ol>
     </AuthCard>

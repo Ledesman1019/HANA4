@@ -114,6 +114,8 @@ export type NavItem = {
   label: string;
   desc: string;
   icon: string;
+  /** Código de transacción (equivalente SAP): se escribe en el buscador para ir directo */
+  code: string;
   group: string;
   /** null = disponible para todos los usuarios activos */
   module: ModuleKey | null;
@@ -122,19 +124,28 @@ export type NavItem = {
 };
 
 export const NAV: NavItem[] = [
-  { href: "/", label: "Panel", desc: "Resumen del negocio", icon: "dashboard", group: "General", module: null, needs: "access" },
-  { href: "/pos", label: "Punto de venta", desc: "Cobrar y emitir comprobantes", icon: "pos", group: "Ventas", module: "ventas", needs: "create" },
-  { href: "/ventas", label: "Ventas", desc: "Historial de comprobantes", icon: "sales", group: "Ventas", module: "ventas", needs: "access" },
-  { href: "/facturacion", label: "Facturación", desc: "Comprobantes electrónicos", icon: "billing", group: "Ventas", module: "facturacion", needs: "view" },
-  { href: "/caja", label: "Caja", desc: "Apertura, arqueo y cierre", icon: "cash", group: "Ventas", module: "caja", needs: "access" },
-  { href: "/clientes", label: "Clientes", desc: "Padrón de clientes", icon: "customers", group: "Ventas", module: "clientes", needs: "view" },
-  { href: "/inventario", label: "Inventario", desc: "Productos, stock y kardex", icon: "inventory", group: "Logística", module: "inventario", needs: "view" },
-  { href: "/compras", label: "Compras", desc: "Órdenes y recepción", icon: "purchases", group: "Logística", module: "compras", needs: "view" },
-  { href: "/proveedores", label: "Proveedores", desc: "Padrón de proveedores", icon: "suppliers", group: "Logística", module: "proveedores", needs: "view" },
-  { href: "/finanzas", label: "Finanzas", desc: "Resultados y gastos", icon: "finance", group: "Gestión", module: "finanzas", needs: "view" },
-  { href: "/rrhh", label: "Personal", desc: "Colaboradores y planilla", icon: "hr", group: "Gestión", module: "rrhh", needs: "view" },
-  { href: "/reportes", label: "Reportes", desc: "Análisis y exportación", icon: "reports", group: "Gestión", module: "reportes", needs: "view" },
-  { href: "/configuracion", label: "Configuración", desc: "Empresa, usuarios y roles", icon: "settings", group: "Gestión", module: "configuracion", needs: "view" },
+  { href: "/", label: "Panel", desc: "Resumen del negocio", icon: "dashboard", code: "HOME", group: "General", module: null, needs: "access" },
+  { href: "/pos", label: "Punto de venta", desc: "Cobrar y emitir comprobantes", icon: "pos", code: "VA01", group: "Ventas", module: "ventas", needs: "create" },
+  { href: "/ventas", label: "Ventas", desc: "Historial de comprobantes", icon: "sales", code: "VA05", group: "Ventas", module: "ventas", needs: "access" },
+  { href: "/facturacion", label: "Facturación", desc: "Comprobantes electrónicos", icon: "billing", code: "VF05", group: "Ventas", module: "facturacion", needs: "view" },
+  { href: "/caja", label: "Caja", desc: "Apertura, arqueo y cierre", icon: "cash", code: "FBCJ", group: "Ventas", module: "caja", needs: "access" },
+  { href: "/clientes", label: "Clientes", desc: "Padrón de clientes", icon: "customers", code: "XD03", group: "Ventas", module: "clientes", needs: "view" },
+  { href: "/inventario", label: "Inventario", desc: "Productos, stock y kardex", icon: "inventory", code: "MMBE", group: "Logística", module: "inventario", needs: "view" },
+  { href: "/compras", label: "Compras", desc: "Órdenes y recepción", icon: "purchases", code: "ME2N", group: "Logística", module: "compras", needs: "view" },
+  { href: "/proveedores", label: "Proveedores", desc: "Padrón de proveedores", icon: "suppliers", code: "XK03", group: "Logística", module: "proveedores", needs: "view" },
+  { href: "/finanzas", label: "Finanzas", desc: "Resultados y gastos", icon: "finance", code: "F.01", group: "Gestión", module: "finanzas", needs: "view" },
+  { href: "/rrhh", label: "Personal", desc: "Colaboradores y planilla", icon: "hr", code: "PA20", group: "Gestión", module: "rrhh", needs: "view" },
+  { href: "/reportes", label: "Reportes", desc: "Análisis y exportación", icon: "reports", code: "MCTA", group: "Gestión", module: "reportes", needs: "view" },
+  { href: "/configuracion", label: "Configuración", desc: "Empresa, usuarios y roles", icon: "settings", code: "SPRO", group: "Gestión", module: "configuracion", needs: "view" },
+];
+
+/** Pantallas internas con código propio (no aparecen en el menú, sí en el buscador). */
+export const SHORTCUTS: NavItem[] = [
+  { href: "/inventario/movimientos", label: "Kardex", desc: "Movimientos de almacén", icon: "inventory", code: "MB51", group: "Logística", module: "inventario", needs: "view" },
+  { href: "/compras/nueva", label: "Nueva orden de compra", desc: "Crear pedido a proveedor", icon: "purchases", code: "ME21N", group: "Logística", module: "compras", needs: "create" },
+  { href: "/configuracion/usuarios", label: "Usuarios", desc: "Cuentas y accesos", icon: "settings", code: "SU01", group: "Gestión", module: "configuracion", needs: "view" },
+  { href: "/configuracion/roles", label: "Roles y permisos", desc: "Matriz de permisos por rol", icon: "settings", code: "PFCG", group: "Gestión", module: "configuracion", needs: "view" },
+  { href: "/configuracion/auditoria", label: "Auditoría", desc: "Registro de cambios", icon: "settings", code: "SM20", group: "Gestión", module: "configuracion", needs: "view" },
 ];
 
 /** El rol "admin" tiene acceso total por definición (igual que en la base de datos). */
@@ -145,6 +156,13 @@ export function hasPermission(role: string, permissions: Permissions, module: Mo
   return action === "access" ? Boolean(p.view || p.create) : Boolean(p[action]);
 }
 
+const allowed = (role: string, permissions: Permissions) => (n: NavItem) => n.module === null || hasPermission(role, permissions, n.module, n.needs);
+
 export function navFor(role: string, permissions: Permissions) {
-  return NAV.filter((n) => n.module === null || hasPermission(role, permissions, n.module, n.needs));
+  return NAV.filter(allowed(role, permissions));
+}
+
+/** Todo lo que el usuario puede abrir por código o nombre desde el buscador. */
+export function destinationsFor(role: string, permissions: Permissions) {
+  return [...NAV, ...SHORTCUTS].filter(allowed(role, permissions));
 }

@@ -48,6 +48,8 @@ export const loadContext = cache(async (): Promise<Loaded> => {
   const ctx = data as { profile: Profile | null; role_name: string | null; settings: Settings | null; branches: Branch[] | null; permissions: Permissions | null };
   const { profile, settings } = ctx;
   const branches = ctx.branches ?? [];
+  // El perfil aún no trae los campos de la última migración: hay que actualizar la base
+  if (profile && profile.is_super === undefined) return { status: "setup" };
   if (!profile || !profile.active || !settings) return { status: "inactive" };
 
   const permissions = ctx.permissions ?? {};

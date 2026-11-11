@@ -3,10 +3,10 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hexagon } from "lucide-react";
 import { navFor } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 import { useApp } from "./app-provider";
+import { BrandMark } from "./brand";
 import { NAV_ICONS } from "./nav-icons";
 import { MobileClose, Topbar } from "./topbar";
 
@@ -23,12 +23,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col border-r border-menu-border bg-menu text-menu-text">
       <div className="flex h-16 shrink-0 items-center gap-3 px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-600/30">
-          <Hexagon className="h-[18px] w-[18px]" strokeWidth={2.5} />
-        </div>
+        <BrandMark className="h-10 w-10" />
         <div className="min-w-0">
           <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">
-            ERP <span className="text-brand-500">HANA4</span>
+            HANA<span className="text-brand-500">4</span> <span className="text-[11px] font-semibold text-menu-muted">ERP</span>
           </p>
           <p className="truncate text-[11px] leading-tight text-menu-muted">{settings.name}</p>
         </div>

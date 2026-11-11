@@ -15,7 +15,7 @@ const STATUS: Record<Employee["status"], { label: string; tone: BadgeTone }> = {
 
 type Option = { value: string; label: string };
 
-export function EmployeesView({ rows, branches, today }: { rows: Employee[]; branches: Option[]; today: string }) {
+export function EmployeesView({ rows, branches, users, today }: { rows: Employee[]; branches: Option[]; users: Option[]; today: string }) {
   const { money } = useApp();
   const branchName = (id: string | null) => branches.find((b) => b.value === id)?.label ?? "—";
 
@@ -33,6 +33,11 @@ export function EmployeesView({ rows, branches, today }: { rows: Employee[]; bra
     { header: "Sucursal", cell: (e) => branchName(e.branch_id) },
     { header: "Ingreso", cell: (e) => <span className="tabular">{formatDate(e.hire_date)}</span> },
     { header: "Sueldo", align: "right", cell: (e) => money(e.salary) },
+    {
+      header: "Comisión",
+      align: "right",
+      cell: (e) => (Number(e.commission_rate) > 0 ? <span title={e.profile_id ? undefined : "Sin usuario vinculado: no genera comisiones"}>{Number(e.commission_rate)}%{!e.profile_id && " ⚠"}</span> : <span className="text-slate-400">—</span>),
+    },
     { header: "Estado", cell: (e) => <Badge tone={STATUS[e.status].tone}>{STATUS[e.status].label}</Badge> },
   ];
 
@@ -43,6 +48,8 @@ export function EmployeesView({ rows, branches, today }: { rows: Employee[]; bra
     { name: "branch_id", label: "Sucursal", type: "select", options: branches },
     { name: "status", label: "Estado", type: "select", required: true, defaultValue: "activo", options: Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label })) },
     { name: "salary", label: "Sueldo mensual", type: "number", required: true, defaultValue: "0" },
+    { name: "commission_rate", label: "Comisión por ventas (%)", type: "number", required: true, defaultValue: "0", hint: "Sobre la venta neta (sin impuesto) de cada comprobante." },
+    { name: "profile_id", label: "Usuario del sistema", type: "select", options: users, hint: "Vincula al colaborador con su cuenta: sus ventas le generan comisión.", wide: true },
     { name: "hire_date", label: "Fecha de ingreso", type: "date", required: true, defaultValue: today },
     { name: "phone", label: "Teléfono", type: "tel", maxLength: 30 },
     { name: "email", label: "Correo", type: "email" },
@@ -70,6 +77,7 @@ export function EmployeesView({ rows, branches, today }: { rows: Employee[]; bra
           { header: "Ingreso", type: "date", value: (e) => e.hire_date },
           { header: "Estado", value: (e) => STATUS[e.status].label },
           { header: "Teléfono", value: (e) => e.phone },
+          { header: "Comisión %", type: "number", value: (e) => Number(e.commission_rate) },
           { header: "Sueldo", type: "money", total: true, value: (e) => (e.status === "cesado" ? null : Number(e.salary)) },
         ],
       }}

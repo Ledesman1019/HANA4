@@ -41,10 +41,9 @@ Los permisos se asignan al **rol**, no a la persona: si mañana entran 20 vended
 
 - **Configuración → Roles y permisos** muestra la matriz: por cada módulo, qué puede **Ver, Crear, Editar y Eliminar** cada rol. Se pueden crear roles propios (por ejemplo, «Supervisor de Ventas»).
 - Roles base: Administrador, Gerente, Vendedor, Almacenero y Contador.
-- Salvaguardas:
-  - El Administrador siempre tiene acceso total y **nunca puede quedar el sistema sin un administrador activo**. La pantalla de usuarios avisa cuando solo hay uno.
-  - Nadie puede modificar los permisos de su propio rol ni cambiarse de rol.
-  - Solo un administrador puede crear o editar a otro administrador.
+- **Super Administrador** (el dueño o TI): es el único que puede nombrar, modificar o retirar administradores. Un administrador normal opera todo, pero no puede tocar a otro administrador ni concederse ese nivel. Nunca puede quedar el sistema sin un Super Administrador activo.
+- **Mínimo privilegio:** los roles base traen solo lo necesario (un vendedor no ve costos, sueldos ni finanzas) y nadie puede modificar los permisos de su propio rol ni cambiarse de rol.
+- **Auditoría** (Configuración → Auditoría): queda registrado quién y cuándo concedió o quitó cada permiso, cambió un rol, creó o desactivó un usuario, restableció una contraseña, anuló una venta, ajustó stock, cerró caja con diferencia o cambió un sueldo. El registro lo escribe la base de datos y **nadie puede editarlo ni borrarlo**.
 - Los permisos se aplican **en la base de datos** (Row Level Security y funciones SQL), no solo en la interfaz: ocultar un botón no es la protección, es la comodidad.
 
 ## Arquitectura: monolito modular
@@ -76,6 +75,22 @@ supabase/migrations/        Esquema, funciones transaccionales y políticas
 ```
 
 Reglas de dependencia: un módulo usa `lib/` y `components/`, nunca el interior de otro módulo. Para agregar un módulo: una entrada en `lib/modules.ts`, su carpeta en `modules/` y su ruta en `app/`.
+
+### Áreas conectadas
+
+Una venta en el punto de venta, en una sola transacción:
+
+1. descuenta el **inventario** y escribe el kardex,
+2. suma a la **caja** del vendedor,
+3. genera el **comprobante electrónico** (facturación),
+4. genera la **comisión** del vendedor en **Personal**,
+5. alimenta **finanzas** y **reportes**.
+
+Si la venta se anula, todo se revierte: vuelve el stock, se emite la nota de crédito, se anula la comisión y queda en la auditoría.
+
+### Códigos de transacción
+
+Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME21N` nueva compra, `ME2N` compras, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
 
 ### Transacciones
 
@@ -112,6 +127,7 @@ Los precios y totales se calculan en la base de datos; el navegador nunca los en
    1. [`supabase/migrations/0001_schema.sql`](supabase/migrations/0001_schema.sql)
    2. [`supabase/migrations/0002_roles_permisos_imagenes.sql`](supabase/migrations/0002_roles_permisos_imagenes.sql)
    3. [`supabase/migrations/0003_facturacion_demo.sql`](supabase/migrations/0003_facturacion_demo.sql)
+   4. [`supabase/migrations/0004_superadmin_auditoria_comisiones.sql`](supabase/migrations/0004_superadmin_auditoria_comisiones.sql)
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Las cuentas se crean desde el sistema.
 
 ### 2. Variables de entorno

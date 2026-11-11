@@ -17,7 +17,7 @@ export default async function UsersPage() {
       rows={(users.data ?? []) as Profile[]}
       roles={(roles.data ?? []) as RoleRow[]}
       currentUserId={userId}
-      isAdmin={profile.role === "admin"}
+      isSuper={profile.is_super}
       branches={branches.map((b) => ({ value: b.id, label: b.name }))}
     />
   );

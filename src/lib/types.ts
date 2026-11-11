@@ -9,6 +9,8 @@ export type Profile = {
   role: Role;
   branch_id: string | null;
   active: boolean;
+  /** Super Administrador: el único que nombra o modifica administradores */
+  is_super: boolean;
   created_at: string;
 };
 
@@ -149,6 +151,10 @@ export type Employee = {
   email: string;
   phone: string;
   salary: number;
+  /** Usuario del sistema del colaborador: sus ventas le generan comisión */
+  profile_id: string | null;
+  /** % de comisión sobre la venta neta */
+  commission_rate: number;
   hire_date: string;
   status: "activo" | "vacaciones" | "licencia" | "cesado";
 };

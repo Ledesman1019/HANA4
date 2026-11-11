@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, ShieldAlert, UserPlus } from "lucide-react";
+import { KeyRound, Pencil, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/app-provider";
 import { Dialog, DialogFooter } from "@/components/dialog";
 import { Badge, Button, Card, CardHeader, Field, FormError, Input, Select, Table, Td, Th } from "@/components/ui";
 import type { Profile, RoleRow } from "@/lib/types";
-import { createUser, updateUser } from "@/modules/configuracion/actions";
+import { createUser, resetUserPassword, updateUser } from "@/modules/configuracion/actions";
 
 type Option = { value: string; label: string };
 
-export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { rows: Profile[]; roles: RoleRow[]; currentUserId: string; isAdmin: boolean; branches: Option[] }) {
+export function UsersView({ rows, roles, currentUserId, isSuper, branches }: { rows: Profile[]; roles: RoleRow[]; currentUserId: string; isSuper: boolean; branches: Option[] }) {
   const { can } = useApp();
   const canEdit = can("configuracion", "edit");
   const [editing, setEditing] = useState<Profile | "new" | null>(null);
+  const [resetting, setResetting] = useState<Profile | null>(null);
   const [role, setRole] = useState("cajero");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,9 +24,12 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
   const branchName = (id: string | null) => branches.find((b) => b.value === id)?.label ?? "—";
   const isNew = editing === "new";
   const user = editing && editing !== "new" ? editing : null;
-  const activeAdmins = rows.filter((u) => u.role === "admin" && u.active).length;
-  // Solo un administrador concede el rol de administrador
-  const assignable = roles.filter((r) => r.id !== "admin" || isAdmin);
+  const isSelf = user?.id === currentUserId;
+  const activeSupers = rows.filter((u) => u.is_super && u.active).length;
+  // Solo un Super Administrador nombra administradores
+  const assignable = roles.filter((r) => r.id !== "admin" || isSuper);
+  // Un administrador solo puede ser gestionado por un Super Administrador
+  const manageable = (u: Profile) => canEdit && (u.role !== "admin" || isSuper);
 
   function open(target: Profile | "new") {
     setRole(target === "new" ? "cajero" : target.role);
@@ -43,6 +47,7 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
             role,
             branch_id: String(form.get("branch_id") ?? ""),
             active: form.get("active") === "on",
+            is_super: isSuper ? form.get("is_super") === "on" : undefined,
           })
         : await createUser({ ...Object.fromEntries(form), role });
       if (!res.ok) return setError(res.error);
@@ -51,14 +56,26 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
     });
   }
 
+  function submitReset(form: FormData) {
+    if (!resetting) return;
+    const id = resetting.id;
+    setError(null);
+    startTransition(async () => {
+      const res = await resetUserPassword(id, String(form.get("password") ?? ""));
+      if (!res.ok) return setError(res.error);
+      toast.success("Contraseña restablecida. Compártela por un canal seguro");
+      setResetting(null);
+    });
+  }
+
   return (
     <>
-      {activeAdmins < 2 && (
+      {activeSupers < 2 && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            <strong className="font-semibold">Hay un solo administrador.</strong> Si esa persona pierde su acceso, nadie más podrá gestionar usuarios ni permisos. Asigna el rol
-            Administrador a una segunda persona de confianza.
+            <strong className="font-semibold">Hay un solo Super Administrador.</strong> Es el único que puede nombrar o retirar administradores. Si pierde su acceso, nadie podrá hacerlo:
+            concede ese nivel a una segunda persona de máxima confianza (el dueño o el responsable de TI).
           </p>
         </div>
       )}
@@ -66,7 +83,7 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
       <Card>
         <CardHeader
           title="Usuarios del sistema"
-          description="No existe auto-registro: las cuentas se crean aquí y cada una hereda los permisos de su rol."
+          description="No existe auto-registro: las cuentas se crean aquí y cada una hereda los permisos de su rol. Dale a cada persona solo el rol que su trabajo necesita."
           action={
             canEdit ? (
               <Button onClick={() => open("new")}>
@@ -96,7 +113,14 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
                   <p className="text-xs text-slate-500">{u.email}</p>
                 </Td>
                 <Td>
-                  <Badge tone={u.role === "admin" ? "blue" : "neutral"}>{roleOf(u.role)?.name ?? u.role}</Badge>
+                  {u.is_super ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-xs font-semibold text-white">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Super Administrador
+                    </span>
+                  ) : (
+                    <Badge tone={u.role === "admin" ? "blue" : "neutral"}>{roleOf(u.role)?.name ?? u.role}</Badge>
+                  )}
                 </Td>
                 <Td>{branchName(u.branch_id)}</Td>
                 <Td>
@@ -104,11 +128,26 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
                 </Td>
                 {canEdit && (
                   <Td className="text-right">
-                    {/* Un administrador solo puede ser editado por otro administrador */}
-                    {(u.role !== "admin" || isAdmin) && (
-                      <Button variant="ghost" size="icon" aria-label={`Editar ${u.full_name}`} title="Editar" onClick={() => open(u)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                    {manageable(u) && (
+                      <div className="flex justify-end gap-1">
+                        {u.id !== currentUserId && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Restablecer contraseña de ${u.full_name}`}
+                            title="Restablecer contraseña"
+                            onClick={() => {
+                              setError(null);
+                              setResetting(u);
+                            }}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" aria-label={`Editar ${u.full_name}`} title="Editar" onClick={() => open(u)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
                   </Td>
                 )}
@@ -142,7 +181,7 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Rol *">
-              <Select value={role} onChange={(e) => setRole(e.target.value)} disabled={user?.id === currentUserId}>
+              <Select value={role} onChange={(e) => setRole(e.target.value)} disabled={isSelf}>
                 {assignable.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -163,13 +202,27 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
             {roleOf(role)?.description || "Los permisos de este rol se definen en la pestaña «Roles y permisos»."}
           </p>
-          {user && user.id !== currentUserId && (
+
+          {user && !isSelf && (
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" name="active" defaultChecked={user.active} className="h-4 w-4 rounded border-slate-300 accent-brand-600" />
               Cuenta activa (puede iniciar sesión y operar)
             </label>
           )}
-          {user?.id === currentUserId && <input type="hidden" name="active" value="on" />}
+          {isSelf && <input type="hidden" name="active" value="on" />}
+
+          {/* Nivel Super: solo lo concede otro Super Administrador, y solo a administradores */}
+          {user && isSuper && role === "admin" && !isSelf && (
+            <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700">
+              <input type="checkbox" name="is_super" defaultChecked={user.is_super} className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-brand-600" />
+              <span>
+                <span className="font-medium text-slate-900">Super Administrador</span>
+                <span className="block text-xs text-slate-500">Puede nombrar, modificar y retirar a otros administradores. Resérvalo para el dueño o el responsable de TI.</span>
+              </span>
+            </label>
+          )}
+          {isSelf && user?.is_super && <input type="hidden" name="is_super" value="on" />}
+
           <FormError message={error} />
           <DialogFooter>
             <Button variant="secondary" onClick={() => setEditing(null)}>
@@ -177,6 +230,36 @@ export function UsersView({ rows, roles, currentUserId, isAdmin, branches }: { r
             </Button>
             <Button type="submit" loading={pending}>
               {isNew ? "Crear usuario" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
+
+      <Dialog
+        open={resetting !== null}
+        onClose={() => setResetting(null)}
+        title="Restablecer contraseña"
+        description={resetting ? `${resetting.full_name} · ${resetting.email}` : undefined}
+        size="sm"
+      >
+        <form
+          key={resetting?.id ?? "none"}
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitReset(new FormData(e.currentTarget));
+          }}
+        >
+          <Field label="Nueva contraseña" hint="Mínimo 8 caracteres. El cambio queda registrado en la auditoría.">
+            <Input name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" autoFocus />
+          </Field>
+          <FormError message={error} />
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setResetting(null)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={pending}>
+              Restablecer
             </Button>
           </DialogFooter>
         </form>

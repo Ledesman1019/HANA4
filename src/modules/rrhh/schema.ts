@@ -14,6 +14,8 @@ export const employees: EntityDef = {
     email: optionalEmail,
     phone: text(30).default(""),
     salary: money("El sueldo"),
+    profile_id: nullableUuid,
+    commission_rate: z.coerce.number<number>("Comisión inválida").min(0, "La comisión no puede ser negativa").max(100, "La comisión no puede superar 100 %"),
     hire_date: isoDate,
     status: z.enum(["activo", "vacaciones", "licencia", "cesado"]),
   }),

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, PackageCheck, Receipt, ShoppingCart, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, HandCoins, PackageCheck, Receipt, ShoppingCart, TrendingUp, Wallet } from "lucide-react";
 import { BarList, SalesTrendChart } from "@/components/charts";
 import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
 import { getContext } from "@/lib/auth";
 import { PAYMENT_LABELS, type InventoryRow, type Sale } from "@/lib/types";
-import { formatDateTime, formatMoney, formatQty, todayIn } from "@/lib/utils";
+import { formatDateTime, formatMoney, formatQty, todayIn, zonedDayStart } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Panel" };
 
@@ -58,6 +58,13 @@ export default async function DashboardPage() {
   // Sin permiso de ver todas las ventas, el panel resume solo las propias
   const ownOnly = !can("ventas", "view") && !can("reportes", "view");
 
+  // Comisión del mes del propio vendedor: cada venta suya la genera en Personal
+  const mine = ownOnly
+    ? await supabase.from("commissions").select("amount").eq("status", "generada").gte("created_at", zonedDayStart(`${today.slice(0, 7)}-01`, tz))
+    : null;
+  const myCommissions = (mine?.data ?? []) as { amount: number }[];
+  const myCommission = myCommissions.reduce((a, c) => a + Number(c.amount), 0);
+
   return (
     <>
       <PageHeader
@@ -107,7 +114,13 @@ export default async function DashboardPage() {
           hint={`${tickets30} ventas en 30 días`}
         />
         {ownOnly ? (
-          <StatCard label="Vendido en 30 días" value={money(total30)} icon={<PackageCheck className="h-4 w-4" />} tone="slate" />
+          <StatCard
+            label="Tu comisión del mes"
+            value={money(myCommission)}
+            icon={<HandCoins className="h-4 w-4" />}
+            tone="green"
+            hint={myCommissions.length > 0 ? `${myCommissions.length} ventas con comisión` : `Vendido en 30 días: ${money(total30)}`}
+          />
         ) : (
           <StatCard
             label="Utilidad bruta (30 días)"
