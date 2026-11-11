@@ -4,7 +4,7 @@
  * añadir una entrada aquí, su carpeta en src/modules y su ruta en src/app.
  */
 
-export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "inventario" | "compras" | "proveedores" | "finanzas" | "rrhh" | "reportes" | "configuracion";
+export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "inventario" | "compras" | "proveedores" | "cuentas_pagar" | "finanzas" | "rrhh" | "reportes" | "configuracion";
 export type Action = "view" | "create" | "edit" | "delete";
 export type Permissions = Partial<Record<ModuleKey, Partial<Record<Action, boolean>>>>;
 
@@ -67,7 +67,7 @@ export const MODULES: ModuleDef[] = [
     actions: {
       view: "Ver catálogo, stock y kardex",
       create: "Registrar productos y categorías",
-      edit: "Modificar productos, ajustar y transferir stock",
+      edit: "Modificar productos, ajustar y transferir stock, recibir mercadería",
       delete: "Desactivar productos y categorías",
     },
   },
@@ -75,13 +75,29 @@ export const MODULES: ModuleDef[] = [
     key: "compras",
     label: "Compras",
     area: "Almacén",
-    actions: { view: "Ver órdenes de compra", create: "Crear órdenes", edit: "Recibir mercadería (ingresa stock)", delete: "Anular órdenes" },
+    actions: {
+      view: "Ver solicitudes y órdenes de compra",
+      create: "Crear solicitudes de pedido",
+      edit: "Aprobar solicitudes, emitir órdenes y liberar facturas con diferencia",
+      delete: "Anular órdenes",
+    },
   },
   {
     key: "proveedores",
     label: "Proveedores",
     area: "Almacén",
     actions: { view: "Ver el padrón", create: "Registrar proveedores", edit: "Modificar datos", delete: "Desactivar proveedores" },
+  },
+  {
+    key: "cuentas_pagar",
+    label: "Cuentas por pagar",
+    area: "Contabilidad",
+    actions: {
+      view: "Ver facturas de proveedores y saldos",
+      create: "Registrar facturas de proveedor",
+      edit: "Registrar pagos a proveedores",
+      delete: "Anular facturas de proveedor",
+    },
   },
   {
     key: "finanzas",
@@ -133,6 +149,7 @@ export const NAV: NavItem[] = [
   { href: "/inventario", label: "Inventario", desc: "Productos, stock y kardex", icon: "inventory", code: "MMBE", group: "Logística", module: "inventario", needs: "view" },
   { href: "/compras", label: "Compras", desc: "Órdenes y recepción", icon: "purchases", code: "ME2N", group: "Logística", module: "compras", needs: "view" },
   { href: "/proveedores", label: "Proveedores", desc: "Padrón de proveedores", icon: "suppliers", code: "XK03", group: "Logística", module: "proveedores", needs: "view" },
+  { href: "/cuentas-por-pagar", label: "Cuentas por pagar", desc: "Facturas y pagos a proveedores", icon: "payables", code: "FBL1N", group: "Gestión", module: "cuentas_pagar", needs: "view" },
   { href: "/finanzas", label: "Finanzas", desc: "Resultados y gastos", icon: "finance", code: "F.01", group: "Gestión", module: "finanzas", needs: "view" },
   { href: "/rrhh", label: "Personal", desc: "Colaboradores y planilla", icon: "hr", code: "PA20", group: "Gestión", module: "rrhh", needs: "view" },
   { href: "/reportes", label: "Reportes", desc: "Análisis y exportación", icon: "reports", code: "MCTA", group: "Gestión", module: "reportes", needs: "view" },
@@ -142,7 +159,9 @@ export const NAV: NavItem[] = [
 /** Pantallas internas con código propio (no aparecen en el menú, sí en el buscador). */
 export const SHORTCUTS: NavItem[] = [
   { href: "/inventario/movimientos", label: "Kardex", desc: "Movimientos de almacén", icon: "inventory", code: "MB51", group: "Logística", module: "inventario", needs: "view" },
-  { href: "/compras/nueva", label: "Nueva orden de compra", desc: "Crear pedido a proveedor", icon: "purchases", code: "ME21N", group: "Logística", module: "compras", needs: "create" },
+  { href: "/compras/solicitudes", label: "Solicitudes de pedido", desc: "Pedidos internos por aprobar", icon: "purchases", code: "ME5A", group: "Logística", module: "compras", needs: "view" },
+  { href: "/compras/solicitudes/nueva", label: "Nueva solicitud de pedido", desc: "Pedir reposición de mercadería", icon: "purchases", code: "ME51N", group: "Logística", module: "compras", needs: "create" },
+  { href: "/compras/nueva", label: "Nueva orden de compra", desc: "Crear pedido a proveedor", icon: "purchases", code: "ME21N", group: "Logística", module: "compras", needs: "edit" },
   { href: "/configuracion/usuarios", label: "Usuarios", desc: "Cuentas y accesos", icon: "settings", code: "SU01", group: "Gestión", module: "configuracion", needs: "view" },
   { href: "/configuracion/roles", label: "Roles y permisos", desc: "Matriz de permisos por rol", icon: "settings", code: "PFCG", group: "Gestión", module: "configuracion", needs: "view" },
   { href: "/configuracion/auditoria", label: "Auditoría", desc: "Registro de cambios", icon: "settings", code: "SM20", group: "Gestión", module: "configuracion", needs: "view" },

@@ -5,19 +5,19 @@ import { connection } from "next/server";
 import { CheckCircle2, Circle } from "lucide-react";
 import { AuthCard } from "@/components/auth-card";
 import { Skeleton } from "@/components/ui";
+import { REQUIRED_SCHEMA } from "@/lib/auth";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { SetupForm } from "@/modules/auth/components/setup-form";
 
 export const metadata: Metadata = { title: "Instalación" };
 
-/** Versión de esquema que necesita esta versión de la aplicación. */
-const REQUIRED_SCHEMA = 4;
 
 const UPDATES: [version: number, file: string, what: string][] = [
   [2, "0002_roles_permisos_imagenes.sql", "roles con permisos, fotos de producto y carga más rápida"],
   [3, "0003_facturacion_demo.sql", "facturación electrónica en modo demo"],
   [4, "0004_superadmin_auditoria_comisiones.sql", "Super Administrador, registro de auditoría y comisiones de venta"],
+  [5, "0005_ciclo_compras_cuentas_por_pagar.sql", "solicitudes de pedido, aprobaciones, facturas de proveedor y pagos"],
 ];
 
 export default function SetupPage() {

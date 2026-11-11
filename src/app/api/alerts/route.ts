@@ -14,14 +14,20 @@ export async function GET() {
   const seesPurchases = can("compras", "view");
 
   const seesBilling = can("facturacion", "view");
+  const approves = can("compras", "edit");
+  const seesPayables = can("cuentas_pagar", "view");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: ctx.settings.timezone }).format(new Date());
 
-  const [out, low, pending, session, unsent] = await Promise.all([
+  const [out, low, pending, session, unsent, toApprove, overdue] = await Promise.all([
     seesStock ? stockQuery().lte("quantity", 0) : null,
     seesStock ? stockQuery().eq("low_stock", true).gt("quantity", 0) : null,
     seesPurchases ? supabase.from("purchases").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "ordenada") : null,
     supabase.from("cash_sessions").select("id, opened_at").eq("opened_by", userId).eq("status", "abierta").maybeSingle(),
     // Comprobantes electrónicos sin aceptar (si la tabla aún no existe, devuelve error y se ignora)
     seesBilling ? supabase.from("e_documents").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).neq("status", "aceptado") : null,
+    // Ciclo de compras: solicitudes por aprobar y facturas de proveedor vencidas
+    approves ? supabase.from("purchase_requisitions").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "pendiente") : null,
+    seesPayables ? supabase.from("supplier_invoices").select("id", { count: "exact", head: true }).in("status", ["pendiente", "parcial", "bloqueada"]).lt("due_date", today) : null,
   ]);
 
   const items: AlertItem[] = [];
@@ -35,6 +41,12 @@ export async function GET() {
   }
   if (pending?.count) {
     items.push({ id: "po", tone: "blue", title: plural(pending.count, "compra por recibir", "compras por recibir"), detail: "Órdenes pendientes de recepción", href: "/compras" });
+  }
+  if (toApprove?.count) {
+    items.push({ id: "solped", tone: "blue", title: plural(toApprove.count, "solicitud de pedido por aprobar", "solicitudes de pedido por aprobar"), detail: "Revísalas para emitir la orden de compra", href: "/compras/solicitudes" });
+  }
+  if (overdue?.count) {
+    items.push({ id: "ap", tone: "red", title: plural(overdue.count, "factura de proveedor vencida", "facturas de proveedor vencidas"), detail: "Pagos atrasados a proveedores", href: "/cuentas-por-pagar?estado=vencidas" });
   }
   if (unsent?.count) {
     items.push({ id: "edoc", tone: "red", title: plural(unsent.count, "comprobante sin aceptar", "comprobantes sin aceptar"), detail: "Pendientes o rechazados: revísalos y reenvía", href: "/facturacion" });

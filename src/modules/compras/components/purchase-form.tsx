@@ -13,13 +13,28 @@ import { formatQty, round2 } from "@/lib/utils";
 export type PurchaseProduct = { product_id: string; sku: string; name: string; unit: string; cost: number; quantity: number; min_stock: number };
 type Line = { product_id: string; quantity: string; unit_cost: string };
 
-export function PurchaseForm({ suppliers, products }: { suppliers: { value: string; label: string }[]; products: PurchaseProduct[] }) {
+export function PurchaseForm({
+  suppliers,
+  products,
+  requisition,
+}: {
+  suppliers: { value: string; label: string }[];
+  products: PurchaseProduct[];
+  /** Solicitud de pedido aprobada de la que nace la orden */
+  requisition?: { id: string; number: string; items: { product_id: string; quantity: number }[] };
+}) {
   const { money, settings } = useApp();
   const router = useRouter();
   const [supplierId, setSupplierId] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
   const [note, setNote] = useState("");
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, setLines] = useState<Line[]>(() =>
+    (requisition?.items ?? []).map((i) => ({
+      product_id: i.product_id,
+      quantity: String(Number(i.quantity)),
+      unit_cost: Number(products.find((p) => p.product_id === i.product_id)?.cost ?? 0).toFixed(2),
+    })),
+  );
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -55,6 +70,7 @@ export function PurchaseForm({ suppliers, products }: { suppliers: { value: stri
         supplier_id: supplierId,
         expected_date: expectedDate,
         note,
+        requisition_id: requisition?.id ?? null,
         items: lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity), unit_cost: Number(l.unit_cost) })),
       });
       if (!res.ok) return setError(res.error);
@@ -70,7 +86,10 @@ export function PurchaseForm({ suppliers, products }: { suppliers: { value: stri
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <Card>
-        <CardHeader title="Productos de la orden" description="Los costos se ingresan sin impuesto." />
+        <CardHeader
+          title="Productos de la orden"
+          description={requisition ? `De la solicitud ${requisition.number}. Ajusta cantidades y costos (sin impuesto).` : "Los costos se ingresan sin impuesto."}
+        />
         <div className="relative border-b border-slate-100 p-3">
           <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input

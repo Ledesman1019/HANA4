@@ -16,6 +16,8 @@ const AREAS: Record<string, { label: string; tone: BadgeTone }> = {
   usuario: { label: "Usuarios", tone: "blue" },
   venta: { label: "Ventas", tone: "red" },
   stock: { label: "Inventario", tone: "amber" },
+  compra: { label: "Compras", tone: "neutral" },
+  pago: { label: "Pagos", tone: "amber" },
   caja: { label: "Caja", tone: "amber" },
   personal: { label: "Personal", tone: "neutral" },
   empresa: { label: "Empresa", tone: "neutral" },

@@ -13,7 +13,8 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 | **Caja** | Apertura, ingresos y retiros, arqueo y cierre con diferencia, historial de cierres. |
 | **Clientes** | Padrón con DNI/RUC validado. |
 | **Inventario** | Catálogo con fotos, stock por sucursal, alertas de mínimo, ajustes por conteo, transferencias entre sucursales, kardex. |
-| **Compras** | Órdenes de compra, sugerencia por stock bajo, recepción con costo promedio ponderado. |
+| **Compras** | Ciclo completo de aprovisionamiento: solicitud de pedido, aprobación, orden de compra, recepción con costo promedio ponderado. |
+| **Cuentas por pagar** | Facturas de proveedor verificadas contra la orden, bloqueo por diferencias, pagos totales o parciales, vencimientos. |
 | **Proveedores** | Padrón de proveedores. |
 | **Finanzas** | Estado de resultados mensual y registro de gastos por categoría. |
 | **Personal** | Colaboradores, cargos, estado y planilla mensual. |
@@ -88,9 +89,28 @@ Una venta en el punto de venta, en una sola transacción:
 
 Si la venta se anula, todo se revierte: vuelve el stock, se emite la nota de crédito, se anula la comisión y queda en la auditoría.
 
+### Ciclo de compras (modelo SAP MM)
+
+```
+Solicitud de pedido → Aprobación → Orden de compra → Recepción → Factura del proveedor → Pago
+      ME51N             ME54N          ME21N           MIGO            MIRO              F110
+```
+
+Cada paso lo hace un rol distinto (separación de funciones):
+
+| Paso | Quién | Permiso |
+|---|---|---|
+| Solicitar mercadería | Cualquier área | Compras · Crear |
+| Aprobar y emitir la orden | Compras | Compras · Editar |
+| Recibir la mercadería | Almacén | Inventario · Editar |
+| Registrar la factura | Contabilidad | Cuentas por pagar · Crear |
+| Pagar | Tesorería | Cuentas por pagar · Editar |
+
+Controles: nadie aprueba su propia solicitud; una factura cuyo importe difiere de la orden más del 1 % queda **bloqueada para pago** hasta que Compras la libere; no se factura lo que no se recibió ni se paga más que el saldo. Cada orden muestra su **flujo de documentos** con el paso en que se encuentra.
+
 ### Códigos de transacción
 
-Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME21N` nueva compra, `ME2N` compras, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
+Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
 
 ### Transacciones
 
@@ -128,6 +148,7 @@ Los precios y totales se calculan en la base de datos; el navegador nunca los en
    2. [`supabase/migrations/0002_roles_permisos_imagenes.sql`](supabase/migrations/0002_roles_permisos_imagenes.sql)
    3. [`supabase/migrations/0003_facturacion_demo.sql`](supabase/migrations/0003_facturacion_demo.sql)
    4. [`supabase/migrations/0004_superadmin_auditoria_comisiones.sql`](supabase/migrations/0004_superadmin_auditoria_comisiones.sql)
+   5. [`supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql`](supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql)
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Las cuentas se crean desde el sistema.
 
 ### 2. Variables de entorno

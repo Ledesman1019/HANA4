@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, ClipboardList, FileCheck2, Landmark, LayoutDashboard, Receipt, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { BarChart3, Boxes, ClipboardList, FileCheck2, HandCoins, Landmark, LayoutDashboard, Receipt, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 export const NAV_ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -10,6 +10,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   inventory: Boxes,
   purchases: ClipboardList,
   suppliers: Truck,
+  payables: HandCoins,
   finance: Landmark,
   hr: UserRound,
   reports: BarChart3,

@@ -194,6 +194,21 @@ export const PURCHASE_STATUS: Record<string, { label: string; tone: "amber" | "g
   anulada: { label: "Anulada", tone: "red" },
 };
 
+export const REQUISITION_STATUS: Record<string, { label: string; tone: "amber" | "green" | "red" | "blue" }> = {
+  pendiente: { label: "Por aprobar", tone: "amber" },
+  aprobada: { label: "Aprobada", tone: "green" },
+  rechazada: { label: "Rechazada", tone: "red" },
+  convertida: { label: "Con orden de compra", tone: "blue" },
+};
+
+export const INVOICE_STATUS: Record<string, { label: string; tone: "amber" | "green" | "red" | "blue" | "neutral" }> = {
+  bloqueada: { label: "Bloqueada", tone: "red" },
+  pendiente: { label: "Por pagar", tone: "amber" },
+  parcial: { label: "Pago parcial", tone: "blue" },
+  pagada: { label: "Pagada", tone: "green" },
+  anulada: { label: "Anulada", tone: "neutral" },
+};
+
 export const MOVEMENT_LABELS: Record<string, string> = {
   inicial: "Inventario inicial",
   compra: "Compra",

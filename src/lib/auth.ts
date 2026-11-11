@@ -10,6 +10,9 @@ import type { ActionResult, Branch, Profile, Settings } from "./types";
 
 export const BRANCH_COOKIE = "erp_branch";
 
+/** Versión del esquema (última migración) que necesita esta versión de la aplicación. */
+export const REQUIRED_SCHEMA = 5;
+
 type Loaded =
   | {
       status: "ok";
@@ -45,11 +48,11 @@ export const loadContext = cache(async (): Promise<Loaded> => {
   // La función no existe: falta ejecutar una migración.
   if (error || !data) return { status: "setup" };
 
-  const ctx = data as { profile: Profile | null; role_name: string | null; settings: Settings | null; branches: Branch[] | null; permissions: Permissions | null };
+  const ctx = data as { schema?: number; profile: Profile | null; role_name: string | null; settings: Settings | null; branches: Branch[] | null; permissions: Permissions | null };
   const { profile, settings } = ctx;
   const branches = ctx.branches ?? [];
-  // El perfil aún no trae los campos de la última migración: hay que actualizar la base
-  if (profile && profile.is_super === undefined) return { status: "setup" };
+  // La base está en una versión anterior a la que necesita esta aplicación: hay que actualizarla
+  if ((ctx.schema ?? 0) < REQUIRED_SCHEMA) return { status: "setup" };
   if (!profile || !profile.active || !settings) return { status: "inactive" };
 
   const permissions = ctx.permissions ?? {};
