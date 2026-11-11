@@ -5,10 +5,12 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Power, Search, SearchX, Trash2
 import { toast } from "sonner";
 import { deleteEntity, saveEntity, setEntityActive } from "@/lib/crud/actions";
 import type { EntityKey } from "@/lib/crud/registry";
+import type { ExportColumn } from "@/lib/export";
 import type { ModuleKey } from "@/lib/modules";
 import { cn } from "@/lib/utils";
 import { useApp } from "./app-provider";
 import { Dialog, DialogFooter } from "./dialog";
+import { ExportMenu } from "./export-menu";
 import { ImageField } from "./image-field";
 import { Button, Card, EmptyState, Field, FormError, Input, Select, Table, Td, Textarea, Th } from "./ui";
 
@@ -55,7 +57,11 @@ type Props<T> = {
   /** Texto inicial del buscador (p. ej. al llegar desde la búsqueda global) */
   initialQuery?: string;
   pageSize?: number;
+  /** Habilita «Exportar» (Excel, PDF, CSV, imprimir) sobre las filas filtradas */
+  exportable?: { title: string; filename: string; columns: ExportField<T>[] };
 };
+
+export type ExportField<T> = Omit<ExportColumn, "key"> & { value: (row: T) => string | number | null | undefined };
 
 /**
  * Listado + alta/edición en ventana modal para cualquier maestro.
@@ -77,6 +83,7 @@ export function ResourceManager<T>({
   searchPlaceholder,
   initialQuery = "",
   pageSize = 20,
+  exportable,
 }: Props<T>) {
   const { can } = useApp();
   // En Configuración todo cambio requiere el permiso "editar".
@@ -163,6 +170,15 @@ export function ResourceManager<T>({
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {toolbar}
+            {exportable && (
+              <ExportMenu
+                title={exportable.title}
+                subtitle={query.trim() ? `Filtro: «${query.trim()}»` : undefined}
+                filename={exportable.filename}
+                columns={exportable.columns.map((c, i) => ({ key: `c${i}`, header: c.header, type: c.type, width: c.width, total: c.total }))}
+                rows={filtered.map((row) => Object.fromEntries(exportable.columns.map((c, i) => [`c${i}`, c.value(row)])))}
+              />
+            )}
             {canCreate && (
               <Button onClick={() => setEditing("new")}>
                 <Plus className="h-4 w-4" />

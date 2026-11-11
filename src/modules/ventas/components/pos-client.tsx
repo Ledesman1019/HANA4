@@ -10,6 +10,7 @@ import { Dialog, DialogFooter } from "@/components/dialog";
 import { ProductThumb } from "@/components/product-thumb";
 import { ScannerDialog } from "@/components/scanner";
 import { Button, buttonClass, Card, Field, FormError, Input, Select } from "@/components/ui";
+import { playSound } from "@/lib/sound";
 import { cn, formatQty, round2 } from "@/lib/utils";
 
 export type PosProduct = {
@@ -153,7 +154,11 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
         discount: discountValue,
         items: lines.map((l) => ({ product_id: l.product.product_id, quantity: l.quantity })),
       });
-      if (!res.ok) return setError(res.error);
+      if (!res.ok) {
+        playSound("error");
+        return setError(res.error);
+      }
+      playSound("success");
       setReceipt({ id: res.data.id, total, change: method === "efectivo" ? change : 0 });
       setPaying(false);
       reset();

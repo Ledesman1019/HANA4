@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { PwaSetup } from "@/components/pwa";
 import { ThemedToaster } from "@/components/theme";
 import { THEME_SCRIPT } from "@/lib/theme-script";
 import "./globals.css";
@@ -12,6 +13,10 @@ export const metadata: Metadata = {
   description: "ERP HANA4: ventas, inventario, compras, caja, finanzas y personal para retail.",
   robots: { index: false, follow: false },
   applicationName: "ERP HANA4",
+  // Instalable en iOS: nombre e ícono en la pantalla de inicio
+  appleWebApp: { capable: true, title: "HANA4", statusBarStyle: "black-translucent" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -31,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full">
         {children}
         <ThemedToaster />
+        <PwaSetup />
       </body>
     </html>
   );

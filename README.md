@@ -9,6 +9,7 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 | **Panel** | Ventas del día y de la semana, ticket promedio, utilidad, stock por reponer, últimas ventas. |
 | **Punto de venta** | Catálogo con fotos, búsqueda, lector de código de barras (USB o cámara), descuentos, boleta/factura/ticket, efectivo/tarjeta/Yape/Plin, vuelto, comprobante imprimible. |
 | **Ventas** | Historial con filtros, detalle del comprobante, anulación con devolución de stock. |
+| **Facturación** | Comprobantes electrónicos en **modo demo**: boleta, factura y nota de crédito con validación, constancia, XML, QR e importe en letras. |
 | **Caja** | Apertura, ingresos y retiros, arqueo y cierre con diferencia, historial de cierres. |
 | **Clientes** | Padrón con DNI/RUC validado. |
 | **Inventario** | Catálogo con fotos, stock por sucursal, alertas de mínimo, ajustes por conteo, transferencias entre sucursales, kardex. |
@@ -19,7 +20,20 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 | **Reportes** | Ventas por día, categoría, medio de pago, vendedor y sucursal; top de productos; exportación CSV. |
 | **Configuración** | Empresa, impuesto y moneda, sucursales, usuarios, **roles y matriz de permisos**. |
 
-Además: búsqueda global (`Ctrl K`), avisos de stock y caja, modo claro/oscuro y diseño adaptable a celular.
+Además:
+
+- **Exportación** de cada listado a Excel (.xlsx con formato y totales), PDF (con encabezado de la empresa y numeración de páginas), CSV e impresión.
+- **Aplicación instalable (PWA)**: se instala en el celular o la PC desde el menú de usuario, con ícono propio y accesos directos. Sin conexión muestra un aviso en lugar de datos desactualizados.
+- **Avisos con sonido**: stock agotado o bajo, compras por recibir, caja abierta de más y comprobantes sin aceptar. El sonido se silencia desde la campana.
+- Búsqueda global (`Ctrl K`), modo claro/oscuro y diseño adaptable a celular.
+
+## Facturación electrónica (modo demo)
+
+Al cobrar una boleta o factura se genera su comprobante electrónico y se «envía»; al anular la venta se emite la nota de crédito. El flujo, los estados (pendiente, aceptado, rechazado), el XML con estructura UBL 2.1 y la representación impresa con QR son los reales.
+
+**Lo que es simulado:** la respuesta de SUNAT. El proveedor demo aplica las validaciones más comunes (RUC del emisor, RUC del cliente en facturas, totales) y responde como una constancia, pero no envía nada fuera del sistema ni firma el XML. **Los documentos no tienen validez tributaria.**
+
+**Para pasar a real:** implementar la interfaz `BillingProvider` de [`src/modules/facturacion/provider.ts`](src/modules/facturacion/provider.ts) contra un PSE/OSE (Nubefact, Efact u otro) y seleccionarlo con la variable `BILLING_PROVIDER`. Tablas, estados, pantallas y permisos no cambian. Hace falta además el certificado digital y el alta de la empresa como emisor electrónico.
 
 ## Roles y permisos
 
@@ -44,6 +58,7 @@ src/
     api/                      búsqueda global y avisos
   modules/                  Un directorio por módulo de negocio
     ventas/     actions.ts · components/
+    facturacion/ actions.ts · service.ts · provider.ts · xml.ts · components/
     caja/       actions.ts · components/
     inventario/ actions.ts · schema.ts · components/
     compras/    actions.ts · components/
@@ -96,6 +111,7 @@ Los precios y totales se calculan en la base de datos; el navegador nunca los en
 2. En **SQL Editor**, ejecuta en orden:
    1. [`supabase/migrations/0001_schema.sql`](supabase/migrations/0001_schema.sql)
    2. [`supabase/migrations/0002_roles_permisos_imagenes.sql`](supabase/migrations/0002_roles_permisos_imagenes.sql)
+   3. [`supabase/migrations/0003_facturacion_demo.sql`](supabase/migrations/0003_facturacion_demo.sql)
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Las cuentas se crean desde el sistema.
 
 ### 2. Variables de entorno
@@ -123,7 +139,8 @@ Con el administrador ya creado, ejecuta [`supabase/seed.sql`](supabase/seed.sql)
 
 ## Alcance y límites
 
-- Los comprobantes son **internos**. El sistema **no emite comprobantes electrónicos ante SUNAT**; para eso hay que integrarlo con un PSE/OSE (Nubefact u otro).
+- La facturación electrónica está en **modo demo**: no envía nada a SUNAT y sus comprobantes no tienen validez tributaria (ver arriba cómo pasar a real).
+- La PWA no trabaja sin conexión: vender requiere internet para validar stock y caja en el servidor.
 - Los precios de venta incluyen impuesto; los costos de compra se registran sin impuesto.
 - La planilla es un registro de sueldos: no calcula boletas de pago, AFP ni beneficios.
 - El lector por cámara necesita HTTPS (Vercel lo da) y permiso de cámara en el navegador.

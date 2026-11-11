@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { History } from "lucide-react";
+import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
 import { Badge, Card, EmptyState, Field, Input, Select, Table, Td, Th, type BadgeTone } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { MOVEMENT_LABELS } from "@/lib/types";
-import { addDays, formatDateTime, formatQty, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
+import { addDays, formatDate, formatDateTime, formatQty, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Kardex" };
 
@@ -57,6 +58,26 @@ export default async function MovementsPage({ searchParams }: PageProps<"/invent
   const rows = (data ?? []) as unknown as Row[];
 
   return (
+    <>
+      <div className="mb-3 flex justify-end">
+        <ExportMenu
+          title="Kardex de inventario"
+          subtitle={`${branch.name} · del ${formatDate(from)} al ${formatDate(to)}`}
+          filename={`kardex_${from}_${to}`}
+          source={`/api/export/kardex${buildQuery({ desde: from, hasta: to, tipo: type, q })}`}
+          columns={[
+            { key: "fecha", header: "Fecha" },
+            { key: "sku", header: "SKU" },
+            { key: "producto", header: "Producto" },
+            { key: "tipo", header: "Movimiento" },
+            { key: "cantidad", header: "Cantidad", type: "number" },
+            { key: "saldo", header: "Saldo", type: "number" },
+            { key: "costo", header: "Costo unit.", type: "money" },
+            { key: "referencia", header: "Referencia" },
+            { key: "usuario", header: "Usuario" },
+          ]}
+        />
+      </div>
     <Card>
       <FilterBar action="/inventario/movimientos">
         <Field label="Desde">
@@ -130,5 +151,6 @@ export default async function MovementsPage({ searchParams }: PageProps<"/invent
         hrefFor={(p) => `/inventario/movimientos${buildQuery({ desde: from, hasta: to, tipo: type, q, pagina: p })}`}
       />
     </Card>
+    </>
   );
 }

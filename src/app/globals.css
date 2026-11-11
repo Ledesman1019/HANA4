@@ -215,4 +215,20 @@ dialog[open] {
     color: #000 !important;
     border-color: #999 !important;
   }
+  /* Comprobante electrónico en hoja completa (A4) */
+  .print-page {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-page,
+  .print-page * {
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-page :is(dl, p).bg-slate-50 {
+    background: #f1f3f5 !important;
+  }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CameraOff, Loader2 } from "lucide-react";
+import { playSound } from "@/lib/sound";
 import { Dialog } from "./dialog";
 import { Button, Input } from "./ui";
 
@@ -12,19 +13,7 @@ const FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "it
 const REPEAT_MS = 1500;
 
 function beep() {
-  try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 1050;
-    gain.gain.value = 0.08;
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.09);
-    osc.onended = () => void ctx.close();
-  } catch {
-    // Sin audio disponible: el aviso visual basta.
-  }
+  playSound("scan");
   navigator.vibrate?.(60);
 }
 

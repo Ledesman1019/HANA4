@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Receipt, ShoppingBag, TrendingUp, Wallet } from "lucide-react";
 import { BarList, SalesTrendChart } from "@/components/charts";
+import { ExportMenu } from "@/components/export-menu";
 import { FilterBar, param } from "@/components/filters";
 import { Card, CardHeader, EmptyState, Field, Input, PageHeader, Select, StatCard, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { PAYMENT_LABELS } from "@/lib/types";
 import { addDays, formatDate, formatMoney, formatQty, isIsoDate, todayIn } from "@/lib/utils";
-import { ExportButton } from "@/modules/reportes/components/export-button";
 
 export const metadata: Metadata = { title: "Reportes" };
 
@@ -56,10 +56,18 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
   return (
     <>
       <PageHeader title="Reportes" description={`${scopeName} · del ${formatDate(from)} al ${formatDate(to)}`}>
-        <ExportButton
-          filename={`ventas_${from}_${to}.csv`}
+        <ExportMenu
+          title="Ventas por día"
+          subtitle={`${scopeName} · del ${formatDate(from)} al ${formatDate(to)}`}
+          filename={`ventas_por_dia_${from}_${to}`}
           label="Exportar ventas por día"
-          rows={days.map((d) => ({ fecha: d.day, ventas: d.total.toFixed(2), costo: d.cost.toFixed(2), comprobantes: d.tickets }))}
+          columns={[
+            { key: "fecha", header: "Fecha", type: "date" },
+            { key: "comprobantes", header: "Comprobantes", type: "number", total: true },
+            { key: "ventas", header: "Ventas", type: "money", total: true },
+            { key: "costo", header: "Costo de ventas", type: "money", total: true },
+          ]}
+          rows={days.map((d) => ({ fecha: d.day, comprobantes: d.tickets, ventas: d.total, costo: d.cost }))}
         />
       </PageHeader>
 
@@ -136,10 +144,19 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reportes
           title="Productos más vendidos"
           description="Top 15 por importe"
           action={
-            <ExportButton
-              filename={`top_productos_${from}_${to}.csv`}
-              label="Exportar"
-              rows={top.map((t) => ({ sku: t.sku, producto: t.name, cantidad: Number(t.quantity), ventas: Number(t.total).toFixed(2), utilidad: Number(t.profit).toFixed(2) }))}
+            <ExportMenu
+              title="Productos más vendidos"
+              subtitle={`${scopeName} · del ${formatDate(from)} al ${formatDate(to)}`}
+              filename={`top_productos_${from}_${to}`}
+              size="sm"
+              columns={[
+                { key: "sku", header: "SKU" },
+                { key: "producto", header: "Producto" },
+                { key: "cantidad", header: "Unidades", type: "number", total: true },
+                { key: "ventas", header: "Ventas", type: "money", total: true },
+                { key: "utilidad", header: "Utilidad", type: "money", total: true },
+              ]}
+              rows={top.map((t) => ({ sku: t.sku, producto: t.name, cantidad: Number(t.quantity), ventas: Number(t.total), utilidad: Number(t.profit) }))}
             />
           }
         />

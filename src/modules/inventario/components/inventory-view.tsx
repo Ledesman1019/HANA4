@@ -7,7 +7,7 @@ import { adjustStock, transferStock } from "@/modules/inventario/actions";
 import { useApp } from "@/components/app-provider";
 import { Dialog, DialogFooter } from "@/components/dialog";
 import { ProductThumb } from "@/components/product-thumb";
-import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
+import { ResourceManager, type Column, type ExportField, type FieldDef } from "@/components/resource-manager";
 import { Badge, Button, Field, FormError, Input, Select } from "@/components/ui";
 import type { InventoryRow } from "@/lib/types";
 import { formatQty } from "@/lib/utils";
@@ -119,6 +119,23 @@ export function InventoryView({
         searchPlaceholder="Buscar por nombre, SKU o código…"
         initialQuery={initialQuery}
         isActive={(r) => r.active}
+        exportable={{
+          title: `Inventario · ${branch.name}`,
+          filename: "inventario",
+          columns: [
+            { header: "SKU", value: (r) => r.sku },
+            { header: "Código de barras", value: (r) => r.barcode },
+            { header: "Producto", value: (r) => r.name },
+            { header: "Categoría", value: (r) => r.category_name },
+            { header: "Unidad", value: (r) => r.unit },
+            { header: "Stock", type: "number", value: (r) => Number(r.quantity) },
+            { header: "Mínimo", type: "number", value: (r) => Number(r.min_stock) },
+            ...(showCosts ? [{ header: "Costo", type: "money", value: (r) => Number(r.cost) } satisfies ExportField<InventoryRow>] : []),
+            { header: "Precio", type: "money", value: (r) => Number(r.price) },
+            ...(showCosts ? [{ header: "Valor", type: "money", total: true, value: (r) => Number(r.stock_value) } satisfies ExportField<InventoryRow>] : []),
+            { header: "Estado", value: (r) => (!r.active ? "Inactivo" : Number(r.quantity) <= 0 ? "Agotado" : r.low_stock ? "Stock bajo" : "Normal") },
+          ],
+        }}
         toolbar={
           <Select value={filter} onChange={(e) => setFilter(e.target.value as Filter)} aria-label="Filtrar productos" className="w-auto">
             <option value="todos">Todos</option>

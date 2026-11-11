@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Receipt } from "lucide-react";
+import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
 import { Badge, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { DOC_LABELS, PAYMENT_LABELS, type Sale } from "@/lib/types";
-import { addDays, formatDateTime, formatMoney, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
+import { addDays, formatDate, formatDateTime, formatMoney, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Ventas" };
 
@@ -43,7 +44,26 @@ export default async function SalesPage({ searchParams }: PageProps<"/ventas">) 
       <PageHeader
         title="Ventas"
         description={!can("ventas", "view") ? `Tus comprobantes emitidos en ${branch.name}.` : `Comprobantes emitidos en ${branch.name}.`}
-      />
+      >
+        <ExportMenu
+          title="Registro de ventas"
+          subtitle={`${branch.name} · del ${formatDate(from)} al ${formatDate(to)}`}
+          filename={`ventas_${from}_${to}`}
+          source={`/api/export/ventas${buildQuery({ desde: from, hasta: to, estado: status, q })}`}
+          columns={[
+            { key: "numero", header: "Comprobante" },
+            { key: "tipo", header: "Tipo" },
+            { key: "fecha", header: "Fecha" },
+            { key: "cliente", header: "Cliente" },
+            { key: "vendedor", header: "Vendedor" },
+            { key: "pago", header: "Pago" },
+            { key: "estado", header: "Estado" },
+            { key: "subtotal", header: "Op. gravada", type: "money", total: true },
+            { key: "impuesto", header: settings.tax_name, type: "money", total: true },
+            { key: "total", header: "Total", type: "money", total: true },
+          ]}
+        />
+      </PageHeader>
       <Card>
         <FilterBar action="/ventas">
           <Field label="Desde">

@@ -3,6 +3,7 @@ import { AlertTriangle, Boxes, PackageX, Warehouse } from "lucide-react";
 import { param } from "@/components/filters";
 import { StatCard } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
+import { fetchAll } from "@/lib/supabase/paginate";
 import type { Category, InventoryRow } from "@/lib/types";
 import { formatMoney } from "@/lib/utils";
 import { InventoryView } from "@/modules/inventario/components/inventory-view";
@@ -14,10 +15,10 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
   const sp = await searchParams;
 
   const [inventoryRes, categoriesRes] = await Promise.all([
-    supabase.from("inventory_view").select("*").eq("branch_id", branch.id).order("name").limit(5000),
+    fetchAll<InventoryRow>((a, b) => supabase.from("inventory_view").select("*").eq("branch_id", branch.id).order("name").order("product_id").range(a, b)),
     supabase.from("categories").select("*").eq("active", true).order("name"),
   ]);
-  const rows = (inventoryRes.data ?? []) as InventoryRow[];
+  const rows = inventoryRes;
   const active = rows.filter((r) => r.active);
   // El costo es dato sensible: solo lo ve quien gestiona inventario, compras o finanzas
   const showCosts = can("inventario", "edit") || can("compras", "view") || can("finanzas", "view");

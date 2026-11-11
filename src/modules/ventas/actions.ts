@@ -5,6 +5,8 @@ import { z } from "zod";
 import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
 import { amount, firstIssue, quantity, uuid } from "@/lib/validation";
+// Ventas dispara la facturación a través de su servicio público (única dependencia entre módulos)
+import { emitCreditNote, emitForSale } from "@/modules/facturacion/service";
 
 /* Las acciones validan la entrada y delegan en funciones SQL transaccionales,
  * que verifican permisos, stock y totales. El cliente nunca envía precios. */
@@ -21,7 +23,8 @@ const saleSchema = z.object({
 export async function createSale(input: z.input<typeof saleSchema>): Promise<ActionResult<{ id: string }>> {
   const parsed = saleSchema.safeParse(input);
   if (!parsed.success) return fail(firstIssue(parsed.error));
-  const { supabase, branch } = await getContext();
+  const ctx = await getContext();
+  const { supabase, branch } = ctx;
   const s = parsed.data;
 
   const { data, error } = await supabase.rpc("create_sale", {
@@ -34,6 +37,11 @@ export async function createSale(input: z.input<typeof saleSchema>): Promise<Act
     p_items: s.items,
   });
   if (error) return fail(friendlyError(error));
+
+  // Boletas y facturas generan su comprobante electrónico. Si el envío falla,
+  // la venta ya está guardada y el comprobante queda pendiente de reenvío.
+  if (s.doc_type !== "ticket") await emitForSale(ctx, data as string);
+
   revalidatePath("/", "layout");
   return success({ id: data as string });
 }
@@ -42,9 +50,12 @@ export async function voidSale(saleId: string, reason: string): Promise<ActionRe
   if (!uuid.safeParse(saleId).success) return fail("Venta inválida");
   const text = String(reason ?? "").trim();
   if (text.length < 5) return fail("Describe el motivo de la anulación (mínimo 5 caracteres)");
-  const { supabase } = await getContext();
-  const { error } = await supabase.rpc("void_sale", { p_sale: saleId, p_reason: text.slice(0, 300) });
+  const ctx = await getContext();
+  const { error } = await ctx.supabase.rpc("void_sale", { p_sale: saleId, p_reason: text.slice(0, 300) });
   if (error) return fail(friendlyError(error));
+
+  // Si la venta tenía comprobante electrónico, se revierte con una nota de crédito
+  await emitCreditNote(ctx, saleId);
   revalidatePath("/", "layout");
   return success(undefined);
 }

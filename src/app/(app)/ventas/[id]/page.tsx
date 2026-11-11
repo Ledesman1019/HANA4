@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileCheck2 } from "lucide-react";
 import { Badge, buttonClass } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { DOC_LABELS, PAYMENT_LABELS, type Sale, type SaleItem } from "@/lib/types";
 import { formatDateTime, formatMoney, formatQty } from "@/lib/utils";
+import { EmitButton } from "@/modules/facturacion/components/doc-actions";
 import { PrintButton, VoidSaleButton } from "@/modules/ventas/components/sale-actions";
 
 export const metadata: Metadata = { title: "Comprobante" };
@@ -32,6 +33,11 @@ export default async function SaleDetailPage({ params }: PageProps<"/ventas/[id]
   if (!data) notFound();
 
   const sale = data as Detail;
+
+  // Comprobante electrónico de la venta (si la facturación ya está activada)
+  const edocRes = await supabase.from("e_documents").select("id, kind, number, status").eq("sale_id", sale.id).order("created_at");
+  const edocs = (edocRes.data ?? []) as { id: string; kind: string; number: string; status: string }[];
+  const billingReady = !edocRes.error;
   const money = (n: number) => formatMoney(n, settings.currency_symbol);
   const voided = sale.status === "anulada";
   const gross = sale.items.reduce((a, i) => a + Number(i.total), 0);
@@ -48,6 +54,31 @@ export default async function SaleDetailPage({ params }: PageProps<"/ventas/[id]
           <PrintButton />
         </div>
       </div>
+
+      {billingReady && sale.doc_type !== "ticket" && (
+        <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-surface px-4 py-3 text-sm">
+          {edocs.length === 0 ? (
+            <>
+              <span className="text-slate-600">Esta venta aún no tiene comprobante electrónico.</span>
+              {!voided && <EmitButton saleId={sale.id} />}
+            </>
+          ) : (
+            <ul className="w-full space-y-1.5">
+              {edocs.map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-3">
+                  <Link href={`/facturacion/${d.id}`} className="inline-flex items-center gap-2 font-medium text-link hover:underline">
+                    <FileCheck2 className="h-4 w-4" />
+                    {d.kind === "nota_credito" ? "Nota de crédito" : "Comprobante electrónico"} {d.number}
+                  </Link>
+                  <Badge tone={d.status === "aceptado" ? "green" : d.status === "rechazado" ? "red" : "amber"}>
+                    {d.status === "aceptado" ? "Aceptado" : d.status === "rechazado" ? "Rechazado" : "Pendiente"}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <article className="print-area rounded-xl border border-slate-200 bg-surface p-6 text-sm shadow-xs">
         <header className="text-center">

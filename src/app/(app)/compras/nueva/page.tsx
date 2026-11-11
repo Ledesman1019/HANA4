@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { buttonClass, PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
+import { fetchAll } from "@/lib/supabase/paginate";
 import { PurchaseForm, type PurchaseProduct } from "@/modules/compras/components/purchase-form";
 
 export const metadata: Metadata = { title: "Nueva orden de compra" };
@@ -12,7 +13,9 @@ export default async function NewPurchasePage() {
 
   const [suppliersRes, productsRes] = await Promise.all([
     supabase.from("suppliers").select("id, name, tax_id").eq("active", true).order("name"),
-    supabase.from("inventory_view").select("product_id, sku, name, unit, cost, quantity, min_stock").eq("branch_id", branch.id).eq("active", true).order("name").limit(5000),
+    fetchAll<PurchaseProduct>((a, b) =>
+      supabase.from("inventory_view").select("product_id, sku, name, unit, cost, quantity, min_stock").eq("branch_id", branch.id).eq("active", true).order("name").order("product_id").range(a, b),
+    ),
   ]);
 
   return (
@@ -25,7 +28,7 @@ export default async function NewPurchasePage() {
       </PageHeader>
       <PurchaseForm
         suppliers={(suppliersRes.data ?? []).map((s) => ({ value: s.id as string, label: `${s.name} · ${s.tax_id}` }))}
-        products={(productsRes.data ?? []) as PurchaseProduct[]}
+        products={productsRes}
       />
     </>
   );

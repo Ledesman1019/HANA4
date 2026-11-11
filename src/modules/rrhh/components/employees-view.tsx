@@ -59,6 +59,20 @@ export function EmployeesView({ rows, branches, today }: { rows: Employee[]; bra
       getId={(e) => e.id}
       searchText={(e) => `${e.full_name} ${e.doc_number} ${e.position}`}
       searchPlaceholder="Buscar por nombre, documento o cargo…"
+      exportable={{
+        title: "Personal",
+        filename: "personal",
+        columns: [
+          { header: "Documento", value: (e) => e.doc_number },
+          { header: "Colaborador", value: (e) => e.full_name },
+          { header: "Cargo", value: (e) => e.position },
+          { header: "Sucursal", value: (e) => branchName(e.branch_id) },
+          { header: "Ingreso", type: "date", value: (e) => e.hire_date },
+          { header: "Estado", value: (e) => STATUS[e.status].label },
+          { header: "Teléfono", value: (e) => e.phone },
+          { header: "Sueldo", type: "money", total: true, value: (e) => (e.status === "cesado" ? null : Number(e.salary)) },
+        ],
+      }}
     />
   );
 }

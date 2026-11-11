@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Form from "next/form";
+import { ExportMenu } from "@/components/export-menu";
 import { param } from "@/components/filters";
 import { BarList } from "@/components/charts";
 import { Button, Card, CardHeader, Field, Input, PageHeader } from "@/components/ui";
@@ -77,7 +78,24 @@ export default async function FinancePage({ searchParams }: PageProps<"/finanzas
 
       <div className="mb-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Estado de resultados" description="Simplificado, antes de impuesto a la renta" />
+          <CardHeader
+            title="Estado de resultados"
+            description="Simplificado, antes de impuesto a la renta"
+            action={
+              <ExportMenu
+                title="Estado de resultados"
+                subtitle={`${branch.name} · ${monthLabel}`}
+                filename={`estado_resultados_${month}`}
+                size="sm"
+                columns={[
+                  { key: "concepto", header: "Concepto", width: 38 },
+                  { key: "importe", header: "Importe", type: "money" },
+                  { key: "porcentaje", header: "% de ventas netas" },
+                ]}
+                rows={lines.map((l) => ({ concepto: l.label, importe: l.negative ? -l.value : l.value, porcentaje: l.note ?? "" }))}
+              />
+            }
+          />
           <dl className="tabular p-5 text-sm">
             {lines.map((l) => (
               <div key={l.label} className={cn("flex items-baseline justify-between gap-4 py-2", l.strong && "border-t border-slate-200 font-semibold text-slate-900", !l.strong && "text-slate-600")}>

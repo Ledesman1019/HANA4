@@ -13,11 +13,15 @@ export async function GET() {
   const seesStock = can("inventario", "view");
   const seesPurchases = can("compras", "view");
 
-  const [out, low, pending, session] = await Promise.all([
+  const seesBilling = can("facturacion", "view");
+
+  const [out, low, pending, session, unsent] = await Promise.all([
     seesStock ? stockQuery().lte("quantity", 0) : null,
     seesStock ? stockQuery().eq("low_stock", true).gt("quantity", 0) : null,
     seesPurchases ? supabase.from("purchases").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "ordenada") : null,
     supabase.from("cash_sessions").select("id, opened_at").eq("opened_by", userId).eq("status", "abierta").maybeSingle(),
+    // Comprobantes electrónicos sin aceptar (si la tabla aún no existe, devuelve error y se ignora)
+    seesBilling ? supabase.from("e_documents").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).neq("status", "aceptado") : null,
   ]);
 
   const items: AlertItem[] = [];
@@ -31,6 +35,9 @@ export async function GET() {
   }
   if (pending?.count) {
     items.push({ id: "po", tone: "blue", title: plural(pending.count, "compra por recibir", "compras por recibir"), detail: "Órdenes pendientes de recepción", href: "/compras" });
+  }
+  if (unsent?.count) {
+    items.push({ id: "edoc", tone: "red", title: plural(unsent.count, "comprobante sin aceptar", "comprobantes sin aceptar"), detail: "Pendientes o rechazados: revísalos y reenvía", href: "/facturacion" });
   }
   if (session.data) {
     const hours = (Date.now() - new Date(session.data.opened_at as string).getTime()) / 3_600_000;

@@ -4,7 +4,7 @@
  * añadir una entrada aquí, su carpeta en src/modules y su ruta en src/app.
  */
 
-export type ModuleKey = "ventas" | "caja" | "clientes" | "inventario" | "compras" | "proveedores" | "finanzas" | "rrhh" | "reportes" | "configuracion";
+export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "inventario" | "compras" | "proveedores" | "finanzas" | "rrhh" | "reportes" | "configuracion";
 export type Action = "view" | "create" | "edit" | "delete";
 export type Permissions = Partial<Record<ModuleKey, Partial<Record<Action, boolean>>>>;
 
@@ -33,6 +33,15 @@ export const MODULES: ModuleDef[] = [
       create: "Vender en el punto de venta",
       edit: "Aplicar descuentos mayores al 10 %",
       delete: "Anular ventas",
+    },
+  },
+  {
+    key: "facturacion",
+    label: "Facturación",
+    area: "Comercial",
+    actions: {
+      view: "Consultar los comprobantes electrónicos de todos (cada quien ve los de sus ventas)",
+      create: "Emitir y reenviar comprobantes a SUNAT",
     },
   },
   {
@@ -116,6 +125,7 @@ export const NAV: NavItem[] = [
   { href: "/", label: "Panel", desc: "Resumen del negocio", icon: "dashboard", group: "General", module: null, needs: "access" },
   { href: "/pos", label: "Punto de venta", desc: "Cobrar y emitir comprobantes", icon: "pos", group: "Ventas", module: "ventas", needs: "create" },
   { href: "/ventas", label: "Ventas", desc: "Historial de comprobantes", icon: "sales", group: "Ventas", module: "ventas", needs: "access" },
+  { href: "/facturacion", label: "Facturación", desc: "Comprobantes electrónicos", icon: "billing", group: "Ventas", module: "facturacion", needs: "view" },
   { href: "/caja", label: "Caja", desc: "Apertura, arqueo y cierre", icon: "cash", group: "Ventas", module: "caja", needs: "access" },
   { href: "/clientes", label: "Clientes", desc: "Padrón de clientes", icon: "customers", group: "Ventas", module: "clientes", needs: "view" },
   { href: "/inventario", label: "Inventario", desc: "Productos, stock y kardex", icon: "inventory", group: "Logística", module: "inventario", needs: "view" },

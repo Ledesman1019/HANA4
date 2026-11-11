@@ -61,18 +61,30 @@ export async function createUser(values: Record<string, unknown>): Promise<Actio
   const admin = createAdminClient();
   if (!admin) return fail("Falta la variable SUPABASE_SERVICE_ROLE_KEY en el servidor");
 
-  const { error } = await admin.auth.admin.createUser({
+  const { data: created, error } = await admin.auth.admin.createUser({
     email: u.email,
     password: u.password,
     email_confirm: true,
     user_metadata: { full_name: u.full_name },
-    // app_metadata solo lo puede fijar el servidor: de aquí toma el rol el trigger.
-    app_metadata: { role: u.role, branch_id: u.branch_id },
   });
-  if (error) {
-    if (error.code === "email_exists" || error.status === 422) return fail("Ya existe un usuario con ese correo");
+  if (error || !created.user) {
+    if (error?.code === "email_exists" || error?.status === 422) return fail("Ya existe un usuario con ese correo");
     console.error("[createUser]", error);
     return fail("No se pudo crear el usuario");
+  }
+
+  // El trigger crea el perfil sin acceso (Supabase aún no ha guardado los
+  // metadatos al insertar). El rol, la sucursal y el acceso se asignan aquí,
+  // de forma explícita; si falla, no se deja una cuenta a medias.
+  const { data: assigned, error: profileError } = await admin
+    .from("profiles")
+    .update({ full_name: u.full_name, role: u.role, branch_id: u.branch_id, active: true })
+    .eq("id", created.user.id)
+    .select("id");
+  if (profileError || !assigned?.length) {
+    console.error("[createUser] perfil", profileError);
+    await admin.auth.admin.deleteUser(created.user.id);
+    return fail("No se pudo asignar el rol al usuario. Inténtalo de nuevo");
   }
   revalidatePath("/", "layout");
   return success(undefined);

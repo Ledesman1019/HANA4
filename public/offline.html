@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0e1321" />
+    <title>Sin conexión · ERP HANA4</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px;
+        background: #0e1321; color: #eceef3;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main { max-width: 380px; text-align: center; }
+      img { width: 72px; height: 72px; border-radius: 18px; }
+      h1 { margin: 20px 0 8px; font-size: 20px; letter-spacing: -0.01em; }
+      p { margin: 0; color: #aab2c2; font-size: 14px; line-height: 1.6; }
+      button {
+        margin-top: 24px; height: 44px; padding: 0 22px; border: 0; border-radius: 10px;
+        background: #2554eb; color: #fff; font: inherit; font-weight: 600; cursor: pointer;
+      }
+      button:hover { background: #1d41d8; }
+      small { display: block; margin-top: 16px; color: #6c7485; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="" />
+      <h1>No hay conexión a internet</h1>
+      <p>ERP HANA4 necesita conexión para mostrar ventas, stock y caja al día. Revisa tu red y vuelve a intentar.</p>
+      <button type="button" onclick="location.reload()">Reintentar</button>
+      <small>La página se recargará sola cuando vuelva la conexión.</small>
+    </main>
+    <script>
+      window.addEventListener("online", function () { location.reload(); });
+    </script>
+  </body>
+</html>

@@ -69,17 +69,19 @@ export async function createFirstAdmin(_prev: FormState, formData: FormData): Pr
   const admin = createAdminClient();
   if (!admin) return { error: "Falta la variable SUPABASE_SERVICE_ROLE_KEY en el servidor" };
 
-  const { error: createError } = await admin.auth.admin.createUser({
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { full_name },
   });
-  if (createError) {
+  if (createError || !created.user) {
     console.error("[setup]", createError);
     return { error: "No se pudo crear el usuario. Verifica el correo y la contraseña" };
   }
 
+  // El trigger ya lo hizo administrador por ser el primero; aquí se fija el nombre.
+  await admin.from("profiles").update({ full_name }).eq("id", created.user.id);
   await admin.from("company_settings").update({ name: company }).eq("id", 1);
 
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });

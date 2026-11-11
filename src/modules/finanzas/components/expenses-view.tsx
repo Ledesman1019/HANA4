@@ -41,6 +41,17 @@ export function ExpensesView({ rows, branchId, branches, defaultDate }: { rows: 
       searchText={(e) => `${e.description} ${EXPENSE_LABELS[e.category] ?? ""}`}
       searchPlaceholder="Buscar gasto…"
       hardDelete
+      exportable={{
+        title: "Gastos",
+        filename: `gastos_${defaultDate.slice(0, 7)}`,
+        columns: [
+          { header: "Fecha", type: "date", value: (e) => e.expense_date },
+          { header: "Categoría", value: (e) => EXPENSE_LABELS[e.category] ?? e.category },
+          { header: "Descripción", value: (e) => e.description },
+          { header: "Medio de pago", value: (e) => PAYMENT_LABELS[e.payment_method] ?? e.payment_method },
+          { header: "Monto", type: "money", total: true, value: (e) => Number(e.amount) },
+        ],
+      }}
     />
   );
 }

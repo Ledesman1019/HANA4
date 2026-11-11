@@ -62,6 +62,19 @@ export function CustomersView({ rows, initialQuery }: { rows: Customer[]; initia
       searchText={(c) => `${c.name} ${c.doc_number} ${c.email} ${c.phone}`}
       searchPlaceholder="Buscar por nombre o documento…"
       isActive={(c) => c.active}
+      exportable={{
+        title: "Clientes",
+        filename: "clientes",
+        columns: [
+          { header: "Tipo doc.", value: (c) => c.doc_type },
+          { header: "Documento", value: (c) => c.doc_number },
+          { header: "Nombre o razón social", value: (c) => c.name },
+          { header: "Teléfono", value: (c) => c.phone },
+          { header: "Correo", value: (c) => c.email },
+          { header: "Dirección", value: (c) => c.address },
+          { header: "Estado", value: (c) => (c.active ? "Activo" : "Inactivo") },
+        ],
+      }}
     />
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Plus } from "lucide-react";
+import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, Pagination, param } from "@/components/filters";
 import { Badge, buttonClass, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
@@ -38,6 +39,23 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/compra
   return (
     <>
       <PageHeader title="Compras" description={`Órdenes de compra de ${branch.name}. Al recibirlas, el stock ingresa y el costo promedio se actualiza.`}>
+        <ExportMenu
+          title="Órdenes de compra"
+          subtitle={branch.name}
+          filename="compras"
+          source="/api/export/compras"
+          columns={[
+            { key: "numero", header: "Orden" },
+            { key: "proveedor", header: "Proveedor" },
+            { key: "ruc", header: "RUC" },
+            { key: "creada", header: "Creada" },
+            { key: "entrega", header: "Entrega estimada", type: "date" },
+            { key: "estado", header: "Estado" },
+            { key: "subtotal", header: "Subtotal", type: "money", total: true },
+            { key: "impuesto", header: settings.tax_name, type: "money", total: true },
+            { key: "total", header: "Total", type: "money", total: true },
+          ]}
+        />
         {canCreate && (
           <Link href="/compras/nueva" className={buttonClass("primary")}>
             <Plus className="h-4 w-4" />

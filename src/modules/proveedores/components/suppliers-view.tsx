@@ -42,6 +42,19 @@ export function SuppliersView({ rows }: { rows: Supplier[] }) {
       searchText={(s) => `${s.name} ${s.tax_id} ${s.contact_name}`}
       searchPlaceholder="Buscar por razón social o RUC…"
       isActive={(s) => s.active}
+      exportable={{
+        title: "Proveedores",
+        filename: "proveedores",
+        columns: [
+          { header: "RUC", value: (s) => s.tax_id },
+          { header: "Razón social", value: (s) => s.name },
+          { header: "Contacto", value: (s) => s.contact_name },
+          { header: "Teléfono", value: (s) => s.phone },
+          { header: "Correo", value: (s) => s.email },
+          { header: "Dirección", value: (s) => s.address },
+          { header: "Estado", value: (s) => (s.active ? "Activo" : "Inactivo") },
+        ],
+      }}
     />
   );
 }

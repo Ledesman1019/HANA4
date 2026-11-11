@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { AlertTriangle, Bell, Building2, Check, ChevronDown, CircleHelp, KeyRound, LayoutGrid, Loader2, LogOut, Menu, PackageX, Search, Truck, X } from "lucide-react";
+import { AlertTriangle, Bell, Building2, Check, ChevronDown, CircleHelp, KeyRound, LayoutGrid, Loader2, LogOut, Menu, PackageX, Search, Truck, Volume2, VolumeX, X } from "lucide-react";
 import { toast } from "sonner";
 import { changePassword, logout, setBranch } from "@/modules/auth/actions";
 import type { AlertItem } from "@/app/api/alerts/route";
 import type { SearchGroup } from "@/app/api/search/route";
 import { navFor } from "@/lib/modules";
+import { playSound, setSoundEnabled, soundEnabled, subscribeSound } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useApp } from "./app-provider";
 import { Dialog, DialogFooter } from "./dialog";
 import { NAV_ICONS } from "./nav-icons";
+import { InstallAppButton } from "./pwa";
 import { ThemeToggle } from "./theme";
 import { Button, Field, FormError, Input } from "./ui";
 
@@ -31,6 +33,9 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const pathname = usePathname();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Avisos ya vistos en esta sucursal (null = primera carga: no suena)
+  const seenRef = useRef<{ branch: string; keys: Set<string> } | null>(null);
+  const soundOn = useSyncExternalStore(subscribeSound, soundEnabled, () => true);
 
   const [menu, setMenu] = useState<MenuName>(null);
   const [query, setQuery] = useState("");
@@ -65,16 +70,31 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
     };
   }, []);
 
-  // Avisos: al entrar, al cambiar de módulo o sucursal, y cada 2 minutos.
+  // Avisos: al entrar, al cambiar de módulo o sucursal, y cada minuto.
+  // Cuando aparece uno que no estaba, suena la campana y se muestra en pantalla.
   useEffect(() => {
     const controller = new AbortController();
+    if (seenRef.current && seenRef.current.branch !== branch.id) seenRef.current = null;
     const load = () =>
       fetch("/api/alerts", { signal: controller.signal })
         .then((r) => (r.ok ? r.json() : { items: [] }))
-        .then((d: { items: AlertItem[] }) => setAlerts(d.items ?? []))
+        .then((d: { items: AlertItem[] }) => {
+          const items = d.items ?? [];
+          setAlerts(items);
+          const keys = items.map((a) => `${a.id}:${a.title}`);
+          const seen = seenRef.current;
+          if (seen) {
+            const fresh = items.filter((_, i) => !seen.keys.has(keys[i]));
+            if (fresh.length > 0) {
+              playSound("notify");
+              fresh.forEach((a) => toast(a.title, { description: a.detail }));
+            }
+          }
+          seenRef.current = { branch: branch.id, keys: new Set(keys) };
+        })
         .catch(() => {});
     load();
-    const timer = setInterval(load, 120_000);
+    const timer = setInterval(load, 60_000);
     return () => {
       controller.abort();
       clearInterval(timer);
@@ -254,7 +274,23 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
             </button>
             {menu === "alerts" && (
               <div className={cn(popover, "w-80")}>
-                <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">Avisos</p>
+                <div className="flex items-center justify-between border-b border-slate-100 py-2 pl-4 pr-2">
+                  <p className="text-sm font-semibold text-slate-900">Avisos</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSoundEnabled(!soundOn);
+                      // Al activarlo se oye una muestra
+                      if (!soundOn) playSound("notify", { force: true });
+                    }}
+                    aria-pressed={soundOn}
+                    title={soundOn ? "Silenciar el sonido de avisos" : "Activar el sonido de avisos"}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                    {soundOn ? "Sonido activo" : "En silencio"}
+                  </button>
+                </div>
                 {alerts.length === 0 ? (
                   <div className="px-4 py-8 text-center">
                     <Check className="mx-auto h-6 w-6 text-emerald-500" />
@@ -396,6 +432,10 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
                     <KeyRound className="h-4 w-4 text-slate-400" />
                     Cambiar contraseña
                   </button>
+                  <InstallAppButton
+                    onDone={() => setMenu(null)}
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                  />
                   <form action={logout}>
                     <button type="submit" className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-red-600 hover:bg-red-50">
                       <LogOut className="h-4 w-4" />

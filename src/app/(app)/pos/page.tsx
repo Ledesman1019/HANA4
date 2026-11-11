@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Store } from "lucide-react";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
+import { fetchAll } from "@/lib/supabase/paginate";
 import type { CashSession } from "@/lib/types";
 import { OpenCashCard } from "@/modules/caja/components/cash-forms";
 import { PosClient, type PosCustomer, type PosProduct } from "@/modules/ventas/components/pos-client";
@@ -47,16 +48,20 @@ export default async function PosPage() {
     );
   }
 
-  const [productsRes, customersRes] = await Promise.all([
-    supabase
-      .from("inventory_view")
-      .select("product_id, sku, barcode, name, unit, price, quantity, category_name, image_url")
-      .eq("branch_id", branch.id)
-      .eq("active", true)
-      .order("name")
-      .limit(5000),
-    supabase.from("customers").select("id, name, doc_type, doc_number").eq("active", true).order("name").limit(5000),
+  // Catálogo completo en memoria: buscar y agregar no hace peticiones.
+  const [products, customers] = await Promise.all([
+    fetchAll<PosProduct>((a, b) =>
+      supabase
+        .from("inventory_view")
+        .select("product_id, sku, barcode, name, unit, price, quantity, category_name, image_url")
+        .eq("branch_id", branch.id)
+        .eq("active", true)
+        .order("name")
+        .order("product_id")
+        .range(a, b),
+    ),
+    fetchAll<PosCustomer>((a, b) => supabase.from("customers").select("id, name, doc_type, doc_number").eq("active", true).order("name").order("id").range(a, b)),
   ]);
 
-  return <PosClient products={(productsRes.data ?? []) as PosProduct[]} customers={(customersRes.data ?? []) as PosCustomer[]} />;
+  return <PosClient products={products} customers={customers} />;
 }
