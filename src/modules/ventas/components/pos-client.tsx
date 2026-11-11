@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Banknote, CheckCircle2, CreditCard, Landmark, Minus, PackageSearch, Plus, ScanBarcode, Search, ShoppingCart, Smartphone, Trash2 } from "lucide-react";
+import { Banknote, CalendarClock, CheckCircle2, CreditCard, Landmark, Minus, PackageSearch, Plus, ScanBarcode, Search, ShoppingCart, Smartphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createSale } from "@/modules/ventas/actions";
 import { useApp } from "@/components/app-provider";
@@ -11,7 +11,7 @@ import { ProductThumb } from "@/components/product-thumb";
 import { ScannerDialog } from "@/components/scanner";
 import { Button, buttonClass, Card, Field, FormError, Input, Select } from "@/components/ui";
 import { playSound } from "@/lib/sound";
-import { cn, formatQty, round2 } from "@/lib/utils";
+import { addDays, cn, formatQty, round2 } from "@/lib/utils";
 
 export type PosProduct = {
   product_id: string;
@@ -24,10 +24,10 @@ export type PosProduct = {
   category_name: string | null;
   image_url?: string | null;
 };
-export type PosCustomer = { id: string; name: string; doc_type: string; doc_number: string };
+export type PosCustomer = { id: string; name: string; doc_type: string; doc_number: string; credit_limit: number; credit_days: number; debt: number };
 
 type DocType = "ticket" | "boleta" | "factura";
-type Method = "efectivo" | "tarjeta" | "yape" | "plin" | "transferencia";
+type Method = "efectivo" | "tarjeta" | "yape" | "plin" | "transferencia" | "credito";
 
 const METHODS: { value: Method; label: string; icon: typeof Banknote }[] = [
   { value: "efectivo", label: "Efectivo", icon: Banknote },
@@ -35,9 +35,10 @@ const METHODS: { value: Method; label: string; icon: typeof Banknote }[] = [
   { value: "yape", label: "Yape", icon: Smartphone },
   { value: "plin", label: "Plin", icon: Smartphone },
   { value: "transferencia", label: "Transf.", icon: Landmark },
+  { value: "credito", label: "Crédito", icon: CalendarClock },
 ];
 
-export function PosClient({ products, customers }: { products: PosProduct[]; customers: PosCustomer[] }) {
+export function PosClient({ products, customers, today }: { products: PosProduct[]; customers: PosCustomer[]; today: string }) {
   const { money, settings, can } = useApp();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +54,7 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<{ id: string; total: number; change: number } | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [dueDate, setDueDate] = useState("");
   const [pending, startTransition] = useTransition();
 
   const byId = useMemo(() => new Map(products.map((p) => [p.product_id, p])), [products]);
@@ -77,6 +79,9 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
   const receivedValue = Number(received) || 0;
   const change = round2(receivedValue - total);
   const customer = customers.find((c) => c.id === customerId);
+  // Crédito disponible del cliente elegido (el servidor lo vuelve a verificar al vender)
+  const creditAvailable = customer ? Math.max(round2(Number(customer.credit_limit) - Number(customer.debt)), 0) : 0;
+  const creditDue = dueDate || (customer ? addDays(today, Number(customer.credit_days)) : today);
   const maxCashierDiscount = round2(gross * 0.1);
   // Descuentos mayores al 10 % requieren el permiso "Editar" de Ventas (el servidor lo vuelve a verificar)
   const discountBlocked = !can("ventas", "edit") && discountValue > maxCashierDiscount;
@@ -137,6 +142,7 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
     setDocType("boleta");
     setMethod("efectivo");
     setReceived("");
+    setDueDate("");
     setError(null);
   }
 
@@ -144,13 +150,16 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
     setError(null);
     if (docType === "factura" && customer?.doc_type !== "RUC") return setError("La factura requiere un cliente con RUC");
     if (method === "efectivo" && receivedValue < total) return setError("El monto recibido es menor al total");
+    if (method === "credito" && !customer) return setError("Elige el cliente para vender al crédito");
+    if (method === "credito" && total > creditAvailable) return setError(`El total supera el crédito disponible de ${customer?.name} (${money(creditAvailable)})`);
 
     startTransition(async () => {
       const res = await createSale({
         customer_id: customerId || null,
         doc_type: docType,
         payment_method: method,
-        amount_received: method === "efectivo" ? receivedValue : total,
+        amount_received: method === "efectivo" ? receivedValue : method === "credito" ? 0 : total,
+        due_date: method === "credito" ? creditDue : null,
         discount: discountValue,
         items: lines.map((l) => ({ product_id: l.product.product_id, quantity: l.quantity })),
       });
@@ -405,7 +414,7 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
 
           <fieldset>
             <legend className="mb-1.5 text-xs font-medium text-slate-700">Medio de pago</legend>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {METHODS.map((m) => (
                 <button
                   key={m.value}
@@ -455,6 +464,36 @@ export function PosClient({ products, customers }: { products: PosProduct[]; cus
                 <span className="text-sm text-slate-600">Vuelto</span>
                 <span className={cn("tabular text-xl font-semibold", change >= 0 ? "text-emerald-700" : "text-slate-400")}>{money(Math.max(change, 0))}</span>
               </div>
+            </div>
+          )}
+
+          {method === "credito" && (
+            <div className="rounded-xl border border-slate-200 p-4">
+              {!customer ? (
+                <p className="text-sm text-slate-600">Elige arriba el cliente. Solo se vende al crédito a clientes con línea asignada.</p>
+              ) : Number(customer.credit_limit) <= 0 ? (
+                <p className="text-sm text-red-600">{customer.name} no tiene línea de crédito. Cobra al contado o solicita que se la asignen.</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <dl className="tabular space-y-1 text-sm text-slate-600">
+                    <div className="flex justify-between">
+                      <dt>Línea de crédito</dt>
+                      <dd>{money(customer.credit_limit)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt>Deuda actual</dt>
+                      <dd>{money(customer.debt)}</dd>
+                    </div>
+                    <div className={cn("flex justify-between border-t border-slate-200 pt-1 font-semibold", total > creditAvailable ? "text-red-600" : "text-emerald-700")}>
+                      <dt>Disponible</dt>
+                      <dd>{money(creditAvailable)}</dd>
+                    </div>
+                  </dl>
+                  <Field label="Fecha de vencimiento" hint={`Plazo del cliente: ${customer.credit_days} días.`}>
+                    <Input type="date" value={creditDue} min={today} onChange={(e) => setDueDate(e.target.value)} />
+                  </Field>
+                </div>
+              )}
             </div>
           )}
 

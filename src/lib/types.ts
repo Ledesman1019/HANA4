@@ -74,6 +74,9 @@ export type Customer = {
   phone: string;
   address: string;
   active: boolean;
+  /** Línea de crédito (0 = solo contado) y plazo de pago en días */
+  credit_limit: number;
+  credit_days: number;
 };
 
 export type Supplier = {
@@ -169,6 +172,8 @@ export const PAYMENT_LABELS: Record<string, string> = {
   yape: "Yape",
   plin: "Plin",
   transferencia: "Transferencia",
+  credito: "Crédito",
+  cheque: "Cheque",
 };
 
 export const DOC_LABELS: Record<string, string> = {
@@ -192,6 +197,19 @@ export const PURCHASE_STATUS: Record<string, { label: string; tone: "amber" | "g
   ordenada: { label: "Por recibir", tone: "amber" },
   recibida: { label: "Recibida", tone: "green" },
   anulada: { label: "Anulada", tone: "red" },
+};
+
+export const QUOTE_STATUS: Record<string, { label: string; tone: "blue" | "green" | "neutral" | "amber" }> = {
+  vigente: { label: "Vigente", tone: "blue" },
+  aceptada: { label: "Vendida", tone: "green" },
+  anulada: { label: "Anulada", tone: "neutral" },
+  vencida: { label: "Vencida", tone: "amber" },
+};
+
+export const CREDIT_STATUS: Record<string, { label: string; tone: "amber" | "green" | "blue" }> = {
+  pendiente: { label: "Por cobrar", tone: "amber" },
+  parcial: { label: "Abono parcial", tone: "blue" },
+  pagada: { label: "Cobrada", tone: "green" },
 };
 
 export const REQUISITION_STATUS: Record<string, { label: string; tone: "amber" | "green" | "red" | "blue" }> = {

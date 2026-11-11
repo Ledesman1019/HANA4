@@ -18,6 +18,7 @@ const UPDATES: [version: number, file: string, what: string][] = [
   [3, "0003_facturacion_demo.sql", "facturación electrónica en modo demo"],
   [4, "0004_superadmin_auditoria_comisiones.sql", "Super Administrador, registro de auditoría y comisiones de venta"],
   [5, "0005_ciclo_compras_cuentas_por_pagar.sql", "solicitudes de pedido, aprobaciones, facturas de proveedor y pagos"],
+  [6, "0006_cotizaciones_credito_cuentas_por_cobrar.sql", "cotizaciones, ventas al crédito y cobranza"],
 ];
 
 export default function SetupPage() {

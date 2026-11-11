@@ -4,7 +4,7 @@
  * añadir una entrada aquí, su carpeta en src/modules y su ruta en src/app.
  */
 
-export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "inventario" | "compras" | "proveedores" | "cuentas_pagar" | "finanzas" | "rrhh" | "reportes" | "configuracion";
+export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "cuentas_cobrar" | "inventario" | "compras" | "proveedores" | "cuentas_pagar" | "finanzas" | "rrhh" | "reportes" | "configuracion";
 export type Action = "view" | "create" | "edit" | "delete";
 export type Permissions = Partial<Record<ModuleKey, Partial<Record<Action, boolean>>>>;
 
@@ -30,7 +30,7 @@ export const MODULES: ModuleDef[] = [
     area: "Comercial",
     actions: {
       view: "Consultar los comprobantes de todos (cada quien siempre ve los suyos)",
-      create: "Vender en el punto de venta",
+      create: "Vender en el punto de venta y emitir cotizaciones",
       edit: "Aplicar descuentos mayores al 10 %",
       delete: "Anular ventas",
     },
@@ -59,6 +59,16 @@ export const MODULES: ModuleDef[] = [
     label: "Clientes",
     area: "Comercial",
     actions: { view: "Ver el padrón", create: "Registrar clientes", edit: "Modificar datos", delete: "Desactivar clientes" },
+  },
+  {
+    key: "cuentas_cobrar",
+    label: "Cuentas por cobrar",
+    area: "Comercial",
+    actions: {
+      view: "Ver las deudas de los clientes",
+      create: "Registrar cobros a clientes",
+      edit: "Conceder y modificar la línea de crédito de un cliente",
+    },
   },
   {
     key: "inventario",
@@ -143,12 +153,14 @@ export const NAV: NavItem[] = [
   { href: "/", label: "Panel", desc: "Resumen del negocio", icon: "dashboard", code: "HOME", group: "General", module: null, needs: "access" },
   { href: "/pos", label: "Punto de venta", desc: "Cobrar y emitir comprobantes", icon: "pos", code: "VA01", group: "Ventas", module: "ventas", needs: "create" },
   { href: "/ventas", label: "Ventas", desc: "Historial de comprobantes", icon: "sales", code: "VA05", group: "Ventas", module: "ventas", needs: "access" },
+  { href: "/cotizaciones", label: "Cotizaciones", desc: "Ofertas con precio congelado", icon: "quotes", code: "VA25", group: "Ventas", module: "ventas", needs: "access" },
   { href: "/facturacion", label: "Facturación", desc: "Comprobantes electrónicos", icon: "billing", code: "VF05", group: "Ventas", module: "facturacion", needs: "view" },
   { href: "/caja", label: "Caja", desc: "Apertura, arqueo y cierre", icon: "cash", code: "FBCJ", group: "Ventas", module: "caja", needs: "access" },
   { href: "/clientes", label: "Clientes", desc: "Padrón de clientes", icon: "customers", code: "XD03", group: "Ventas", module: "clientes", needs: "view" },
   { href: "/inventario", label: "Inventario", desc: "Productos, stock y kardex", icon: "inventory", code: "MMBE", group: "Logística", module: "inventario", needs: "view" },
   { href: "/compras", label: "Compras", desc: "Órdenes y recepción", icon: "purchases", code: "ME2N", group: "Logística", module: "compras", needs: "view" },
   { href: "/proveedores", label: "Proveedores", desc: "Padrón de proveedores", icon: "suppliers", code: "XK03", group: "Logística", module: "proveedores", needs: "view" },
+  { href: "/cuentas-por-cobrar", label: "Cuentas por cobrar", desc: "Ventas al crédito y cobranza", icon: "receivables", code: "FBL5N", group: "Gestión", module: "cuentas_cobrar", needs: "view" },
   { href: "/cuentas-por-pagar", label: "Cuentas por pagar", desc: "Facturas y pagos a proveedores", icon: "payables", code: "FBL1N", group: "Gestión", module: "cuentas_pagar", needs: "view" },
   { href: "/finanzas", label: "Finanzas", desc: "Resultados y gastos", icon: "finance", code: "F.01", group: "Gestión", module: "finanzas", needs: "view" },
   { href: "/rrhh", label: "Personal", desc: "Colaboradores y planilla", icon: "hr", code: "PA20", group: "Gestión", module: "rrhh", needs: "view" },
@@ -158,6 +170,7 @@ export const NAV: NavItem[] = [
 
 /** Pantallas internas con código propio (no aparecen en el menú, sí en el buscador). */
 export const SHORTCUTS: NavItem[] = [
+  { href: "/cotizaciones/nueva", label: "Nueva cotización", desc: "Oferta de venta a un cliente", icon: "quotes", code: "VA21", group: "Ventas", module: "ventas", needs: "create" },
   { href: "/inventario/movimientos", label: "Kardex", desc: "Movimientos de almacén", icon: "inventory", code: "MB51", group: "Logística", module: "inventario", needs: "view" },
   { href: "/compras/solicitudes", label: "Solicitudes de pedido", desc: "Pedidos internos por aprobar", icon: "purchases", code: "ME5A", group: "Logística", module: "compras", needs: "view" },
   { href: "/compras/solicitudes/nueva", label: "Nueva solicitud de pedido", desc: "Pedir reposición de mercadería", icon: "purchases", code: "ME51N", group: "Logística", module: "compras", needs: "create" },

@@ -5,13 +5,14 @@ import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
 import type { CashSession } from "@/lib/types";
+import { todayIn } from "@/lib/utils";
 import { OpenCashCard } from "@/modules/caja/components/cash-forms";
 import { PosClient, type PosCustomer, type PosProduct } from "@/modules/ventas/components/pos-client";
 
 export const metadata: Metadata = { title: "Punto de venta" };
 
 export default async function PosPage() {
-  const { supabase, userId, branch, branches } = await requireAccess("ventas", "create");
+  const { supabase, userId, branch, branches, settings } = await requireAccess("ventas", "create");
 
   const { data: sessionData } = await supabase.from("cash_sessions").select("*").eq("opened_by", userId).eq("status", "abierta").maybeSingle();
   const session = sessionData as CashSession | null;
@@ -60,8 +61,20 @@ export default async function PosPage() {
         .order("product_id")
         .range(a, b),
     ),
-    fetchAll<PosCustomer>((a, b) => supabase.from("customers").select("id, name, doc_type, doc_number").eq("active", true).order("name").order("id").range(a, b)),
+    fetchAll<Omit<PosCustomer, "debt">>((a, b) =>
+      supabase.from("customers").select("id, name, doc_type, doc_number, credit_limit, credit_days").eq("active", true).order("name").order("id").range(a, b),
+    ),
   ]);
 
-  return <PosClient products={products} customers={customers} />;
+  // Deuda vigente de los clientes con crédito: el punto de venta muestra cuánto les queda
+  const { data: credit } = await supabase.rpc("customer_credit_status");
+  const debts = new Map(((credit ?? []) as { customer_id: string; debt: number }[]).map((c) => [c.customer_id, Number(c.debt)]));
+
+  return (
+    <PosClient
+      products={products}
+      customers={customers.map((c) => ({ ...c, credit_limit: Number(c.credit_limit), debt: debts.get(c.id) ?? 0 }))}
+      today={todayIn(settings.timezone)}
+    />
+  );
 }

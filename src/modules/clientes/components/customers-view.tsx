@@ -1,5 +1,6 @@
 "use client";
 
+import { useApp } from "@/components/app-provider";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
 import type { Customer } from "@/lib/types";
@@ -49,6 +50,18 @@ const fields: FieldDef[] = [
 ];
 
 export function CustomersView({ rows, initialQuery }: { rows: Customer[]; initialQuery?: string }) {
+  const { can, money } = useApp();
+  // La línea de crédito solo la ve y la fija quien administra el crédito
+  const manageCredit = can("cuentas_cobrar", "edit");
+  const creditColumn: Column<Customer> = {
+    header: "Crédito",
+    align: "right",
+    cell: (c) => (Number(c.credit_limit) > 0 ? <span title={`Plazo: ${c.credit_days} días`}>{money(c.credit_limit)}</span> : <span className="text-slate-400">Contado</span>),
+  };
+  const creditFields: FieldDef[] = [
+    { name: "credit_limit", label: "Línea de crédito", type: "number", defaultValue: "0", hint: "Deuda máxima permitida. 0 = solo vende al contado." },
+    { name: "credit_days", label: "Plazo de pago (días)", type: "number", step: "1", defaultValue: "0", hint: "Días para pagar cada venta al crédito." },
+  ];
   return (
     <ResourceManager
       entity="customers"
@@ -56,8 +69,8 @@ export function CustomersView({ rows, initialQuery }: { rows: Customer[]; initia
       initialQuery={initialQuery}
       singular="cliente"
       rows={rows}
-      columns={columns}
-      fields={fields}
+      columns={can("cuentas_cobrar", "view") || manageCredit ? [...columns.slice(0, 2), creditColumn, ...columns.slice(2)] : columns}
+      fields={manageCredit ? [...fields, ...creditFields] : fields}
       getId={(c) => c.id}
       searchText={(c) => `${c.name} ${c.doc_number} ${c.email} ${c.phone}`}
       searchPlaceholder="Buscar por nombre o documento…"

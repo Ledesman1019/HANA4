@@ -18,7 +18,9 @@ export async function GET() {
   const seesPayables = can("cuentas_pagar", "view");
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: ctx.settings.timezone }).format(new Date());
 
-  const [out, low, pending, session, unsent, toApprove, overdue] = await Promise.all([
+  const seesReceivables = can("cuentas_cobrar", "view");
+
+  const [out, low, pending, session, unsent, toApprove, overdue, lateCustomers] = await Promise.all([
     seesStock ? stockQuery().lte("quantity", 0) : null,
     seesStock ? stockQuery().eq("low_stock", true).gt("quantity", 0) : null,
     seesPurchases ? supabase.from("purchases").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "ordenada") : null,
@@ -28,6 +30,8 @@ export async function GET() {
     // Ciclo de compras: solicitudes por aprobar y facturas de proveedor vencidas
     approves ? supabase.from("purchase_requisitions").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "pendiente") : null,
     seesPayables ? supabase.from("supplier_invoices").select("id", { count: "exact", head: true }).in("status", ["pendiente", "parcial", "bloqueada"]).lt("due_date", today) : null,
+    // Ventas al crédito vencidas sin cobrar
+    seesReceivables ? supabase.from("sales").select("id", { count: "exact", head: true }).eq("status", "completada").in("credit_status", ["pendiente", "parcial"]).lt("due_date", today) : null,
   ]);
 
   const items: AlertItem[] = [];
@@ -47,6 +51,9 @@ export async function GET() {
   }
   if (overdue?.count) {
     items.push({ id: "ap", tone: "red", title: plural(overdue.count, "factura de proveedor vencida", "facturas de proveedor vencidas"), detail: "Pagos atrasados a proveedores", href: "/cuentas-por-pagar?estado=vencidas" });
+  }
+  if (lateCustomers?.count) {
+    items.push({ id: "ar", tone: "red", title: plural(lateCustomers.count, "venta al crédito vencida", "ventas al crédito vencidas"), detail: "Clientes con pagos atrasados", href: "/cuentas-por-cobrar?estado=vencidas" });
   }
   if (unsent?.count) {
     items.push({ id: "edoc", tone: "red", title: plural(unsent.count, "comprobante sin aceptar", "comprobantes sin aceptar"), detail: "Pendientes o rechazados: revísalos y reenvía", href: "/facturacion" });

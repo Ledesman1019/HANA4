@@ -5,13 +5,17 @@ import { ArrowLeft, FileCheck2 } from "lucide-react";
 import { Badge, buttonClass } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { DOC_LABELS, PAYMENT_LABELS, type Sale, type SaleItem } from "@/lib/types";
-import { formatDateTime, formatMoney, formatQty } from "@/lib/utils";
+import { formatDate, formatDateTime, formatMoney, formatQty, todayIn } from "@/lib/utils";
+import { CollectButton } from "@/modules/cuentas-cobrar/components/collect-button";
 import { EmitButton } from "@/modules/facturacion/components/doc-actions";
 import { PrintButton, VoidSaleButton } from "@/modules/ventas/components/sale-actions";
 
 export const metadata: Metadata = { title: "Comprobante" };
 
 type Detail = Sale & {
+  due_date: string | null;
+  amount_paid: number;
+  credit_status: string | null;
   customer: { name: string; doc_type: string; doc_number: string; address: string } | null;
   cashier: { full_name: string } | null;
   branch: { name: string; address: string } | null;
@@ -54,6 +58,24 @@ export default async function SaleDetailPage({ params }: PageProps<"/ventas/[id]
           <PrintButton />
         </div>
       </div>
+
+      {sale.payment_method === "credito" && !voided && (
+        <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-surface px-4 py-3 text-sm">
+          <div>
+            <p className="font-medium text-slate-900">
+              Venta al crédito · vence el {formatDate(sale.due_date)}
+            </p>
+            <p className="tabular text-xs text-slate-500">
+              Cobrado {money(sale.amount_paid)} de {money(sale.total)} · saldo {money(Number(sale.total) - Number(sale.amount_paid))}
+            </p>
+          </div>
+          {sale.credit_status !== "pagada" && can("cuentas_cobrar", "create") ? (
+            <CollectButton saleId={sale.id} number={sale.number} customer={sale.customer?.name ?? ""} balance={Number(sale.total) - Number(sale.amount_paid)} today={todayIn(settings.timezone)} />
+          ) : (
+            <Badge tone={sale.credit_status === "pagada" ? "green" : "amber"}>{sale.credit_status === "pagada" ? "Cobrada" : "Por cobrar"}</Badge>
+          )}
+        </div>
+      )}
 
       {billingReady && sale.doc_type !== "ticket" && (
         <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-surface px-4 py-3 text-sm">

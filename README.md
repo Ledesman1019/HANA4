@@ -8,7 +8,9 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 |---|---|
 | **Panel** | Ventas del día y de la semana, ticket promedio, utilidad, stock por reponer, últimas ventas. |
 | **Punto de venta** | Catálogo con fotos, búsqueda, lector de código de barras (USB o cámara), descuentos, boleta/factura/ticket, efectivo/tarjeta/Yape/Plin, vuelto, comprobante imprimible. |
-| **Ventas** | Historial con filtros, detalle del comprobante, anulación con devolución de stock. |
+| **Ventas** | Historial con filtros, detalle del comprobante, anulación con devolución de stock. Ventas al contado o al crédito. |
+| **Cotizaciones** | Ofertas al cliente con precio congelado y vigencia; se convierten en venta con un clic. |
+| **Cuentas por cobrar** | Ventas al crédito, línea de crédito por cliente, cobros parciales, antigüedad de la deuda. |
 | **Facturación** | Comprobantes electrónicos en **modo demo**: boleta, factura y nota de crédito con validación, constancia, XML, QR e importe en letras. |
 | **Caja** | Apertura, ingresos y retiros, arqueo y cierre con diferencia, historial de cierres. |
 | **Clientes** | Padrón con DNI/RUC validado. |
@@ -108,9 +110,20 @@ Cada paso lo hace un rol distinto (separación de funciones):
 
 Controles: nadie aprueba su propia solicitud; una factura cuyo importe difiere de la orden más del 1 % queda **bloqueada para pago** hasta que Compras la libere; no se factura lo que no se recibió ni se paga más que el saldo. Cada orden muestra su **flujo de documentos** con el paso en que se encuentra.
 
+### Ciclo comercial (modelo SAP SD)
+
+```
+Cotización → Venta (contado o crédito) → Comprobante → Cobro
+  VA21            VA01                     VF01         F-28
+```
+
+- **Cotización:** congela los precios del día durante su vigencia (1 a 90 días). Al convertirla en venta se respetan esos precios aunque la lista haya cambiado.
+- **Crédito:** solo a clientes con línea asignada. Antes de vender se verifica que la venta no supere el disponible y que el cliente no tenga deuda vencida. Solo quien tiene Cuentas por cobrar · Editar asigna o cambia una línea, y queda en la auditoría.
+- **Cobro:** total o parcial. En efectivo entra a la caja abierta de quien cobra, así el arqueo cuadra. Una venta al crédito con cobros no se puede anular.
+
 ### Códigos de transacción
 
-Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
+Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `VA21` nueva cotización, `VA25` cotizaciones, `FBL5N` cuentas por cobrar, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
 
 ### Transacciones
 
@@ -149,6 +162,7 @@ Los precios y totales se calculan en la base de datos; el navegador nunca los en
    3. [`supabase/migrations/0003_facturacion_demo.sql`](supabase/migrations/0003_facturacion_demo.sql)
    4. [`supabase/migrations/0004_superadmin_auditoria_comisiones.sql`](supabase/migrations/0004_superadmin_auditoria_comisiones.sql)
    5. [`supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql`](supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql)
+   6. [`supabase/migrations/0006_cotizaciones_credito_cuentas_por_cobrar.sql`](supabase/migrations/0006_cotizaciones_credito_cuentas_por_cobrar.sql)
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Las cuentas se crean desde el sistema.
 
 ### 2. Variables de entorno
