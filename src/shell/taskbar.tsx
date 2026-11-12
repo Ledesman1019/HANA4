@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { AlertTriangle, Bell, Check, Info, KeyRound, LogOut, MonitorCog, PackageX, Power, Search, Truck, UserRound } from "lucide-react";
+import { AlertTriangle, Bell, Check, Info, KeyRound, LogOut, MonitorCog, PackageX, Search, Truck, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { logout, signOut } from "@/modules/auth/actions";
-import { exitApp } from "@/lib/exit";
+import { logout } from "@/modules/auth/actions";
 import { playSound } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-provider";
@@ -166,20 +165,9 @@ export function Taskbar({ menu }: { menu: SapModule[] }) {
                 <form action={logout}>
                   <button type="submit" className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-red-600 hover:bg-red-50">
                     <LogOut className="h-4 w-4" />
-                    Cerrar sesión (Logout)
+                    Cerrar sesión
                   </button>
                 </form>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await signOut();
-                    exitApp();
-                  }}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50"
-                >
-                  <Power className="h-4 w-4" />
-                  Salir de la aplicación
-                </button>
               </div>
             </div>
           )}
