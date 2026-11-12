@@ -76,12 +76,12 @@ export default async function BalancesPage({ searchParams }: PageProps<"/contabi
               <CardHeader title="Estado de resultados" description={`Del ${formatDate(from)} al ${formatDate(to)}`} />
               <dl className="p-5 text-sm">
                 {line("Ventas netas", sales)}
-                {line("(−) Costo de ventas", -cost)}
+                {line("(−) Costo de ventas", cost)}
                 {line("Utilidad bruta", gross, true)}
                 {expenses
                   .filter((r) => r.debit - r.credit !== 0)
                   .map((r) => (
-                    <div key={r.code}>{line(`(−) ${r.name}`, period(r), false, true)}</div>
+                    <div key={r.code}>{line(`(−) ${r.name}`, -period(r), false, true)}</div>
                   ))}
                 {otherIncome !== 0 && line("(+) Otros ingresos de gestión", otherIncome)}
                 {line("Resultado del periodo", operating, true)}
