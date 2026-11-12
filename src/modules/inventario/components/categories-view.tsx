@@ -22,6 +22,7 @@ export function CategoriesView({ rows }: { rows: Category[] }) {
       actions={{ save: saveCategory, setActive: setCategoryActive }}
       module="inventario"
       singular="categoría"
+      feminine
       rows={rows}
       columns={columns}
       fields={fields}

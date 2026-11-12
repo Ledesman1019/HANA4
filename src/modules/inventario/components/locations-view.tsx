@@ -32,6 +32,7 @@ export function LocationsView({ rows, branches, branchId, products, startNew }: 
       actions={{ save: saveLocation, setActive: setLocationActive }}
       module="inventario"
       singular="ubicación"
+      feminine
       rows={rows}
       columns={columns}
       fields={fields}

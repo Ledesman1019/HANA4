@@ -99,7 +99,7 @@ try {
   const inv = await page(a, "/inventario", ["Listado de productos", "Productos activos", "Arroz Extra 5 kg"]);
   report(!inv.includes(">Kardex<") && !inv.includes(">Lotes y vencimientos<"), "cada pantalla muestra solo lo suyo (sin pestañas de otras pantallas)");
   await page(a, "/inventario/fisico", ["Inventario físico", "Referencia del conteo"]);
-  await page(a, "/inventario/ubicaciones", ["Ubicaciones de almacén", "Nueva <!-- -->ubicación"]);
+  await page(a, "/inventario/ubicaciones", ["Ubicaciones de almacén", "Nueva ubicación"]);
   await page(a, "/inventario/conteos", ["Inventarios desde RLS Tools"]);
   await page(a, "/inventario/movimientos?tipo=ajuste", ["Ajustes de inventario (histórico)"], "kardex filtrado: ajustes");
   await page(a, "/inventario/movimientos", ["Saldo"]);
@@ -201,7 +201,7 @@ try {
   const vsd = await page(v, "/?m=sd&a=ventas", ["Nueva Orden de Venta (Cotización)", "Nuevo Cliente"], "lanzador del vendedor");
   report(!vsd.includes('href="/pos"') && !vsd.includes('href="/caja"'), "vendedor no cobra en caja (no ve Nueva Venta ni Caja)");
   await page(v, "/cotizaciones/nueva", ["Emitir cotización"], "vendedor cotiza");
-  const vcli = await page(v, "/clientes", ["Nuevo <!-- -->cliente"], "vendedor registra clientes");
+  const vcli = await page(v, "/clientes", ["Nuevo cliente"], "vendedor registra clientes");
   report(!vcli.includes('aria-label="Editar"'), "vendedor no edita clientes");
   for (const p of ["/caja", "/inventario", "/cuentas-por-cobrar", "/contabilidad", "/compras"]) await denied(v, p);
 

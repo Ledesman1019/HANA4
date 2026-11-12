@@ -26,6 +26,7 @@ export function BranchesView({ rows }: { rows: Branch[] }) {
       actions={{ save: saveBranch, setActive: setBranchActive }}
       module="configuracion"
       singular="sucursal"
+      feminine
       rows={rows}
       columns={columns}
       fields={fields}

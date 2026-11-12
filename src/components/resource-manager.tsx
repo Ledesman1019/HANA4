@@ -42,6 +42,8 @@ type Props<T> = {
   module: ModuleKey;
   /** Nombre en singular para títulos y mensajes: "cliente", "producto"… */
   singular: string;
+  /** Sustantivo femenino: «Nueva categoría», «la sucursal» */
+  feminine?: boolean;
   rows: T[];
   columns: Column<T>[];
   fields: FieldDef[];
@@ -83,6 +85,7 @@ export function ResourceManager<T>({
   actions,
   module,
   singular,
+  feminine = false,
   rows,
   columns,
   fields,
@@ -155,7 +158,7 @@ export function ResourceManager<T>({
     startTransition(async () => {
       const res = await actions.save(id, values);
       if (!res.ok) return setError(res.error);
-      toast.success(id ? "Cambios guardados" : `Se registró el ${singular}`);
+      toast.success(id ? "Cambios guardados" : `Se registró ${feminine ? "la" : "el"} ${singular}`);
       close();
     });
   }
@@ -244,7 +247,7 @@ export function ResourceManager<T>({
             {canCreate && (
               <Button onClick={() => setEditing("new")}>
                 <Plus className="h-4 w-4" />
-                Nuevo {singular}
+                {`${feminine ? "Nueva" : "Nuevo"} ${singular}`}
               </Button>
             )}
           </div>
@@ -257,7 +260,7 @@ export function ResourceManager<T>({
             description={
               rows.length === 0
                 ? canCreate
-                  ? `Crea el primer ${singular} con el botón «Nuevo ${singular}».`
+                  ? `Crea ${feminine ? "la primera" : "el primer"} ${singular} con el botón «${feminine ? "Nueva" : "Nuevo"} ${singular}».`
                   : undefined
                 : "Prueba con otro término de búsqueda."
             }
@@ -340,7 +343,7 @@ export function ResourceManager<T>({
         </div>
       </Card>
 
-      <Dialog open={editing !== null} onClose={close} title={editing === "new" ? `Nuevo ${singular}` : `Editar ${singular}`} size="lg">
+      <Dialog open={editing !== null} onClose={close} title={editing === "new" ? `${feminine ? "Nueva" : "Nuevo"} ${singular}` : `Editar ${singular}`} size="lg">
         {/* onSubmit (no action) para conservar lo escrito si el servidor rechaza los datos */}
         <form
           onSubmit={(e) => {
