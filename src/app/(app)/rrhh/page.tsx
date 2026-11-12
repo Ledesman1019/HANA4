@@ -6,7 +6,7 @@ import { param } from "@/components/filters";
 import { Button, Card, CardHeader, EmptyState, Field, Input, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
-import type { Employee } from "@/lib/types";
+import type { Employee } from "@/modules/rrhh/types";
 import { formatMoney, todayIn, zonedDayStart } from "@/lib/utils";
 import { EmployeesView } from "@/modules/rrhh/components/employees-view";
 

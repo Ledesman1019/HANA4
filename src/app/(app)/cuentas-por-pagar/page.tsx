@@ -6,7 +6,7 @@ import { FilterBar, param } from "@/components/filters";
 import { Badge, Card, EmptyState, Field, PageHeader, Select, StatCard, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
-import { INVOICE_STATUS } from "@/lib/types";
+import { INVOICE_STATUS } from "@/modules/cuentas-pagar/types";
 import { addDays, formatDate, formatMoney, todayIn } from "@/lib/utils";
 import { PurchasingTabs } from "@/modules/compras/components/purchasing-tabs";
 import { PayInvoiceButton, ReleaseInvoiceButton, VoidInvoiceButton } from "@/modules/cuentas-pagar/components/invoice-actions";

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/ui";
 import { param } from "@/components/filters";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
-import type { Customer } from "@/lib/types";
+import type { Customer } from "@/modules/clientes/types";
 import { CustomersView } from "@/modules/clientes/components/customers-view";
 
 export const metadata: Metadata = { title: "Clientes" };

@@ -1,8 +1,9 @@
 "use client";
 
+import { saveCategory, setCategoryActive } from "@/modules/inventario/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
-import type { Category } from "@/lib/types";
+import type { Category } from "@/modules/inventario/types";
 
 const columns: Column<Category>[] = [
   { header: "Categoría", cell: (c) => <span className="font-medium text-slate-900">{c.name}</span> },
@@ -18,7 +19,7 @@ const fields: FieldDef[] = [
 export function CategoriesView({ rows }: { rows: Category[] }) {
   return (
     <ResourceManager
-      entity="categories"
+      actions={{ save: saveCategory, setActive: setCategoryActive }}
       module="inventario"
       singular="categoría"
       rows={rows}

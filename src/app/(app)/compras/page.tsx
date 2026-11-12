@@ -5,7 +5,8 @@ import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, Pagination, param } from "@/components/filters";
 import { Badge, buttonClass, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { INVOICE_STATUS, PURCHASE_STATUS } from "@/lib/types";
+import { INVOICE_STATUS } from "@/modules/cuentas-pagar/types";
+import { PURCHASE_STATUS } from "@/modules/compras/types";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/utils";
 import { PurchasingTabs } from "@/modules/compras/components/purchasing-tabs";
 

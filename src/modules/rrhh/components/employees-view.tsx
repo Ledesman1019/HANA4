@@ -1,9 +1,10 @@
 "use client";
 
 import { useApp } from "@/components/app-provider";
+import { saveEmployee } from "@/modules/rrhh/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge, type BadgeTone } from "@/components/ui";
-import type { Employee } from "@/lib/types";
+import type { Employee } from "@/modules/rrhh/types";
 import { formatDate } from "@/lib/utils";
 
 const STATUS: Record<Employee["status"], { label: string; tone: BadgeTone }> = {
@@ -57,7 +58,7 @@ export function EmployeesView({ rows, branches, users, today }: { rows: Employee
 
   return (
     <ResourceManager
-      entity="employees"
+      actions={{ save: saveEmployee }}
       module="rrhh"
       singular="colaborador"
       rows={rows}

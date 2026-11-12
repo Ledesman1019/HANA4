@@ -4,7 +4,7 @@ import { param } from "@/components/filters";
 import { StatCard } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
-import type { Category, InventoryRow } from "@/lib/types";
+import type { Category, InventoryRow } from "@/modules/inventario/types";
 import { formatMoney } from "@/lib/utils";
 import { InventoryView } from "@/modules/inventario/components/inventory-view";
 

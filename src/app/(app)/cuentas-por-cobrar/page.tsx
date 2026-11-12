@@ -6,7 +6,7 @@ import { FilterBar, param } from "@/components/filters";
 import { Badge, Card, CardHeader, EmptyState, Field, PageHeader, Select, StatCard, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
-import { CREDIT_STATUS } from "@/lib/types";
+import { CREDIT_STATUS } from "@/modules/cuentas-cobrar/types";
 import { addDays, formatDate, formatMoney, todayIn } from "@/lib/utils";
 import { CollectButton } from "@/modules/cuentas-cobrar/components/collect-button";
 

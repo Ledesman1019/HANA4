@@ -4,7 +4,17 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
+import { crudSave, crudSetActive } from "@/lib/crud/engine";
 import { amount, firstIssue, isoDate, uuid } from "@/lib/validation";
+import { costCenters } from "./schema";
+
+export async function saveCostCenter(id: string | null, values: Record<string, unknown>) {
+  return crudSave(costCenters, id, values);
+}
+
+export async function setCostCenterActive(id: string, active: boolean) {
+  return crudSetActive(costCenters, id, active);
+}
 
 const manualSchema = z.object({
   entry_date: isoDate,

@@ -5,7 +5,7 @@ import { param } from "@/components/filters";
 import { BarList } from "@/components/charts";
 import { Button, Card, CardHeader, Field, Input, PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { EXPENSE_LABELS, type Expense } from "@/lib/types";
+import { EXPENSE_LABELS, type Expense } from "@/modules/finanzas/types";
 import { addDays, cn, formatMoney, todayIn } from "@/lib/utils";
 import { ExpensesView } from "@/modules/finanzas/components/expenses-view";
 

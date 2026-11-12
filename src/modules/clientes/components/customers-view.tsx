@@ -1,9 +1,10 @@
 "use client";
 
 import { useApp } from "@/components/app-provider";
+import { saveCustomer, setCustomerActive } from "@/modules/clientes/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
-import type { Customer } from "@/lib/types";
+import type { Customer } from "@/modules/clientes/types";
 
 const columns: Column<Customer>[] = [
   {
@@ -64,7 +65,7 @@ export function CustomersView({ rows, initialQuery }: { rows: Customer[]; initia
   ];
   return (
     <ResourceManager
-      entity="customers"
+      actions={{ save: saveCustomer, setActive: setCustomerActive }}
       module="clientes"
       initialQuery={initialQuery}
       singular="cliente"

@@ -6,6 +6,7 @@ export const expenses: EntityDef = {
   table: "expenses",
   module: "finanzas",
   softDelete: false,
+  stampCreator: true,
   schema: z.object({
     branch_id: z.uuid("Selecciona la sucursal"),
     category: z.enum(["alquiler", "servicios", "planilla", "marketing", "transporte", "mantenimiento", "impuestos", "otros"]),

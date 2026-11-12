@@ -1,8 +1,9 @@
 "use client";
 
+import { saveSupplier, setSupplierActive } from "@/modules/proveedores/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
-import type { Supplier } from "@/lib/types";
+import type { Supplier } from "@/modules/proveedores/types";
 
 const columns: Column<Supplier>[] = [
   {
@@ -32,7 +33,7 @@ const fields: FieldDef[] = [
 export function SuppliersView({ rows }: { rows: Supplier[] }) {
   return (
     <ResourceManager
-      entity="suppliers"
+      actions={{ save: saveSupplier, setActive: setSupplierActive }}
       module="proveedores"
       singular="proveedor"
       rows={rows}

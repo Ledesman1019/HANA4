@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import { ArrowLeftRight, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { adjustStock, transferStock } from "@/modules/inventario/actions";
+import { adjustStock, saveProduct, setProductActive, transferStock } from "@/modules/inventario/actions";
 import { useApp } from "@/components/app-provider";
 import { Dialog, DialogFooter } from "@/components/dialog";
 import { ProductThumb } from "@/components/product-thumb";
 import { ResourceManager, type Column, type ExportField, type FieldDef } from "@/components/resource-manager";
 import { Badge, Button, Field, FormError, Input, Select } from "@/components/ui";
-import type { InventoryRow } from "@/lib/types";
+import type { InventoryRow } from "@/modules/inventario/types";
 import { formatQty } from "@/lib/utils";
 
 type Option = { value: string; label: string };
@@ -121,7 +121,7 @@ export function InventoryView({
   return (
     <>
       <ResourceManager
-        entity="products"
+        actions={{ save: saveProduct, setActive: setProductActive }}
         module="inventario"
         singular="producto"
         rows={shown}

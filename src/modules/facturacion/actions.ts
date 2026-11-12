@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { DENIED, fail, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
 import { uuid } from "@/lib/validation";
-import { emitForSale, sendDocument } from "./service";
+import { emitForSale, sendDocument } from "./api";
 
 /** Emite el comprobante electrónico de una venta que aún no lo tiene. */
 export async function emitSaleDocument(saleId: string): Promise<ActionResult<{ accepted: boolean; message: string }>> {

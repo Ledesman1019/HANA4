@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadContext } from "@/lib/auth";
 
-export type AlertItem = { id: string; tone: "red" | "amber" | "blue"; title: string; detail: string; href: string };
+import type { AlertItem } from "@/shell/types";
 
 /** Avisos operativos de la campana: se calculan en vivo, no se almacenan. */
 export async function GET() {

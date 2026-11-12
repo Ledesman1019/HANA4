@@ -6,7 +6,7 @@ import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
 import { amount, firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
 // Ventas dispara la facturación a través de su servicio público (única dependencia entre módulos)
-import { emitCreditNote, emitForSale } from "@/modules/facturacion/service";
+import { emitCreditNote, emitForSale } from "@/modules/facturacion/api";
 
 /* Las acciones validan la entrada y delegan en funciones SQL transaccionales,
  * que verifican permisos, stock, crédito y totales. El cliente nunca envía precios. */

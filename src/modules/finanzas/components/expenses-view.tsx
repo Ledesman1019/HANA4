@@ -1,9 +1,11 @@
 "use client";
 
 import { useApp } from "@/components/app-provider";
+import { deleteExpense, saveExpense } from "@/modules/finanzas/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
-import { EXPENSE_LABELS, PAYMENT_LABELS, type Expense } from "@/lib/types";
+import { EXPENSE_LABELS, type Expense } from "@/modules/finanzas/types";
+import { PAYMENT_LABELS } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 type Option = { value: string; label: string };
@@ -34,7 +36,7 @@ export function ExpensesView({ rows, branchId, branches, costCenters, defaultDat
 
   return (
     <ResourceManager
-      entity="expenses"
+      actions={{ save: saveExpense, remove: deleteExpense }}
       module="finanzas"
       singular="gasto"
       rows={rows}
@@ -43,7 +45,6 @@ export function ExpensesView({ rows, branchId, branches, costCenters, defaultDat
       getId={(e) => e.id}
       searchText={(e) => `${e.description} ${EXPENSE_LABELS[e.category] ?? ""}`}
       searchPlaceholder="Buscar gasto…"
-      hardDelete
       exportable={{
         title: "Gastos",
         filename: `gastos_${defaultDate.slice(0, 7)}`,

@@ -54,33 +54,24 @@ Los permisos se asignan al **rol**, no a la persona: si mañana entran 20 vended
 
 ## Arquitectura: monolito modular
 
-Una sola aplicación desplegable, dividida en módulos de negocio con fronteras claras.
+Una sola aplicación desplegable, dividida en módulos de negocio con fronteras claras. El detalle está en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md): las capas, las reglas de frontera, el catálogo de módulos con sus tablas, rutas y permisos, y cómo agregar un módulo.
 
 ```
 src/
   app/                      Rutas (capa de composición: páginas delgadas)
-    (app)/<módulo>/page.tsx   lee datos y arma la pantalla
-    api/                      búsqueda global y avisos
-  modules/                  Un directorio por módulo de negocio
-    ventas/     actions.ts · components/
-    facturacion/ actions.ts · service.ts · provider.ts · xml.ts · components/
-    caja/       actions.ts · components/
-    inventario/ actions.ts · schema.ts · components/
-    compras/    actions.ts · components/
-    clientes/ proveedores/ finanzas/ rrhh/   schema.ts · components/
-    reportes/   components/
-    configuracion/  actions.ts · schema.ts · components/
-    auth/       actions.ts · components/
-  lib/                      Núcleo compartido
-    modules.ts                registro de módulos, menú y significado de cada permiso
-    auth.ts                   sesión, contexto y verificación de permisos
-    crud/                     motor CRUD genérico (cada módulo declara su schema.ts)
-    validation.ts             validaciones reutilizables
-  components/               Kit de interfaz compartido (tabla, modal, buscador, lector…)
-supabase/migrations/        Esquema, funciones transaccionales y políticas
+  shell/                    Marco: menú lateral, barra superior, búsqueda global y avisos
+  modules/<módulo>/         Un directorio por módulo de negocio (15 en total)
+    actions.ts                casos de uso (Server Actions) con validación y permiso
+    schema.ts                 entidades CRUD del módulo (internas)
+    types.ts                  tipos y catálogos públicos
+    api.ts                    servicios públicos para otros módulos (ej. facturacion/api.ts)
+    components/               vistas del módulo (internas)
+  components/               Kit de UI genérico (tabla, modal, exportación, lector…)
+  lib/                      Kernel: sesión y permisos, registro de módulos, motor CRUD, validación
+supabase/migrations/        Esquema, funciones transaccionales, RLS y asientos automáticos
 ```
 
-Reglas de dependencia: un módulo usa `lib/` y `components/`, nunca el interior de otro módulo. Para agregar un módulo: una entrada en `lib/modules.ts`, su carpeta en `modules/` y su ruta en `app/`.
+Las dependencias van en una sola dirección: `app → shell → modules → components → lib`. Un módulo solo puede usar de otro su `api.ts`, `types.ts` y `actions.ts`. `npm run lint` hace cumplir estas fronteras con `no-restricted-imports`, configurado en `eslint.config.mjs`.
 
 ### Áreas conectadas
 

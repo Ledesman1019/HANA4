@@ -5,7 +5,7 @@ import { ArrowLeft, FilePlus2 } from "lucide-react";
 import { DocumentFlow, type FlowStep } from "@/components/document-flow";
 import { Badge, buttonClass, Card, CardHeader, PageHeader, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { REQUISITION_STATUS } from "@/lib/types";
+import { REQUISITION_STATUS } from "@/modules/compras/types";
 import { formatDate, formatDateTime, formatQty } from "@/lib/utils";
 import { RequisitionDecision } from "@/modules/compras/components/requisition";
 

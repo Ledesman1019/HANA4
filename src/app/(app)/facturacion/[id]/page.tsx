@@ -8,7 +8,7 @@ import { amountInWords } from "@/lib/amount-words";
 import { getContext } from "@/lib/auth";
 import { formatDateTime, formatQty } from "@/lib/utils";
 import { PrintDocButton, ResendButton } from "@/modules/facturacion/components/doc-actions";
-import { loadBillingDocument } from "@/modules/facturacion/service";
+import { loadBillingDocument } from "@/modules/facturacion/api";
 import { IDENTITY_CODES, KIND_CODES, KIND_LABELS, STATUS_META } from "@/modules/facturacion/types";
 
 export const metadata: Metadata = { title: "Comprobante electrónico" };

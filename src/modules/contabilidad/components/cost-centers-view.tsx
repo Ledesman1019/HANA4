@@ -1,5 +1,6 @@
 "use client";
 
+import { saveCostCenter, setCostCenterActive } from "@/modules/contabilidad/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
 
@@ -19,7 +20,7 @@ const fields: FieldDef[] = [
 export function CostCentersView({ rows }: { rows: CostCenter[] }) {
   return (
     <ResourceManager
-      entity="costCenters"
+      actions={{ save: saveCostCenter, setActive: setCostCenterActive }}
       module="contabilidad"
       singular="centro de costo"
       rows={rows}

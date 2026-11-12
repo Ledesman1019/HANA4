@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navFor } from "@/lib/modules";
 import { cn } from "@/lib/utils";
-import { useApp } from "./app-provider";
-import { BrandMark } from "./brand";
+import { useApp } from "@/components/app-provider";
+import { BrandMark } from "@/components/brand";
 import { NAV_ICONS } from "./nav-icons";
 import { MobileClose, Topbar } from "./topbar";
 

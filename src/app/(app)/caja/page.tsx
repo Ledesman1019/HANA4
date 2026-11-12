@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ArrowDownLeft, ArrowUpRight, Banknote, CreditCard, History, Wallet } from "lucide-react";
 import { Badge, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import type { CashSession } from "@/lib/types";
+import type { CashSession } from "@/modules/caja/types";
 import { formatDateTime, formatMoney } from "@/lib/utils";
 import { CashMovementButton, CloseCashButton, OpenCashCard } from "@/modules/caja/components/cash-forms";
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import type { Supplier } from "@/lib/types";
+import type { Supplier } from "@/modules/proveedores/types";
 import { SuppliersView } from "@/modules/proveedores/components/suppliers-view";
 
 export const metadata: Metadata = { title: "Proveedores" };

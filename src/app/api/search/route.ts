@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { loadContext } from "@/lib/auth";
 import { formatMoney } from "@/lib/utils";
 
-export type SearchItem = { title: string; subtitle: string; href: string };
-export type SearchGroup = { label: string; items: SearchItem[] };
+import type { SearchGroup } from "@/shell/types";
 
 /** Búsqueda global de la barra superior. RLS limita lo que cada rol puede ver. */
 export async function GET(request: NextRequest) {

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { AppProvider } from "@/components/app-provider";
-import { Shell } from "@/components/shell";
+import { Shell } from "@/shell/shell";
 import { Skeleton } from "@/components/ui";
 import { canSwitchBranch, getContext } from "@/lib/auth";
 

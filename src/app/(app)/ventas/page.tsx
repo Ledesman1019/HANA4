@@ -5,7 +5,8 @@ import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
 import { Badge, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { DOC_LABELS, PAYMENT_LABELS, type Sale } from "@/lib/types";
+import { DOC_LABELS, type Sale } from "@/modules/ventas/types";
+import { PAYMENT_LABELS } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, formatMoney, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Ventas" };

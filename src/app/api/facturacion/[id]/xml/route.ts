@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { loadContext } from "@/lib/auth";
-import { loadBillingDocument } from "@/modules/facturacion/service";
+import { loadBillingDocument } from "@/modules/facturacion/api";
 import { buildXml } from "@/modules/facturacion/xml";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

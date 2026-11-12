@@ -4,7 +4,7 @@ import { FileText, Plus } from "lucide-react";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
 import { Badge, buttonClass, Card, EmptyState, Field, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { QUOTE_STATUS } from "@/lib/types";
+import { QUOTE_STATUS } from "@/modules/ventas/types";
 import { formatDate, formatDateTime, formatMoney, todayIn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Cotizaciones" };

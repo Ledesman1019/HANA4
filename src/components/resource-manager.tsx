@@ -3,8 +3,7 @@
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Power, Search, SearchX, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { deleteEntity, saveEntity, setEntityActive } from "@/lib/crud/actions";
-import type { EntityKey } from "@/lib/crud/registry";
+import type { CrudActions } from "@/lib/crud/types";
 import type { ExportColumn } from "@/lib/export";
 import type { ModuleKey } from "@/lib/modules";
 import { cn } from "@/lib/utils";
@@ -37,7 +36,8 @@ export type FieldDef = {
 };
 
 type Props<T> = {
-  entity: EntityKey;
+  /** Acciones de servidor del módulo dueño (guardar, activar/desactivar, borrar) */
+  actions: CrudActions;
   /** Módulo dueño: los botones crear/editar/eliminar siguen los permisos del rol */
   module: ModuleKey;
   /** Nombre en singular para títulos y mensajes: "cliente", "producto"… */
@@ -49,8 +49,6 @@ type Props<T> = {
   searchText: (row: T) => string;
   /** Habilita activar/desactivar; devuelve el estado actual de la fila */
   isActive?: (row: T) => boolean;
-  /** El registro se puede borrar definitivamente (no solo desactivar) */
-  hardDelete?: boolean;
   rowActions?: (row: T) => ReactNode;
   toolbar?: ReactNode;
   searchPlaceholder?: string;
@@ -68,7 +66,7 @@ export type ExportField<T> = Omit<ExportColumn, "key"> & { value: (row: T) => st
  * Los módulos solo declaran columnas y campos.
  */
 export function ResourceManager<T>({
-  entity,
+  actions,
   module,
   singular,
   rows,
@@ -77,7 +75,6 @@ export function ResourceManager<T>({
   getId,
   searchText,
   isActive,
-  hardDelete,
   rowActions,
   toolbar,
   searchPlaceholder,
@@ -121,7 +118,7 @@ export function ResourceManager<T>({
     const id = editing && editing !== "new" ? getId(editing) : null;
     setError(null);
     startTransition(async () => {
-      const res = await saveEntity(entity, id, values);
+      const res = await actions.save(id, values);
       if (!res.ok) return setError(res.error);
       toast.success(id ? "Cambios guardados" : `Se registró el ${singular}`);
       close();
@@ -130,18 +127,21 @@ export function ResourceManager<T>({
 
   function toggle(row: T) {
     const next = !isActive!(row);
+    if (!actions.setActive) return;
+    const setActive = actions.setActive;
     startTransition(async () => {
-      const res = await setEntityActive(entity, getId(row), next);
+      const res = await setActive(getId(row), next);
       if (res.ok) toast.success(next ? "Activado" : "Desactivado");
       else toast.error(res.error);
     });
   }
 
   function confirmDelete() {
-    if (!deleting) return;
+    if (!deleting || !actions.remove) return;
     const id = getId(deleting);
+    const remove = actions.remove;
     startTransition(async () => {
-      const res = await deleteEntity(entity, id);
+      const res = await remove(id);
       if (res.ok) toast.success("Registro eliminado");
       else toast.error(res.error);
       setDeleting(null);
@@ -225,7 +225,7 @@ export function ResourceManager<T>({
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {canRemove && isActive && (
+                          {canRemove && isActive && actions.setActive && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -237,7 +237,7 @@ export function ResourceManager<T>({
                               <Power className={cn("h-4 w-4", inactive ? "text-emerald-600" : "text-slate-400")} />
                             </Button>
                           )}
-                          {canRemove && hardDelete && (
+                          {canRemove && actions.remove && (
                             <Button variant="ghost" size="icon" title="Eliminar" aria-label="Eliminar" onClick={() => setDeleting(row)}>
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>

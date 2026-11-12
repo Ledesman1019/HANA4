@@ -4,7 +4,7 @@ import { ClipboardPen, Plus } from "lucide-react";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
 import { Badge, buttonClass, Card, EmptyState, Field, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { REQUISITION_STATUS } from "@/lib/types";
+import { REQUISITION_STATUS } from "@/modules/compras/types";
 import { formatDateTime } from "@/lib/utils";
 import { PurchasingTabs } from "@/modules/compras/components/purchasing-tabs";
 

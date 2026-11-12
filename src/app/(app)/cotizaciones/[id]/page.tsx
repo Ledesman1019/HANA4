@@ -6,7 +6,7 @@ import { DocumentFlow } from "@/components/document-flow";
 import { Badge, buttonClass } from "@/components/ui";
 import { amountInWords } from "@/lib/amount-words";
 import { requireAccess } from "@/lib/auth";
-import { QUOTE_STATUS } from "@/lib/types";
+import { QUOTE_STATUS } from "@/modules/ventas/types";
 import { formatDate, formatDateTime, formatMoney, formatQty, todayIn } from "@/lib/utils";
 import { PrintButton } from "@/modules/ventas/components/sale-actions";
 import { CancelQuotationButton, ConvertQuotationButton } from "@/modules/ventas/components/quotation";

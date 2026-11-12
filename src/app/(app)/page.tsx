@@ -4,7 +4,9 @@ import { AlertTriangle, ArrowDownRight, ArrowUpRight, HandCoins, PackageCheck, R
 import { BarList, SalesTrendChart } from "@/components/charts";
 import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
 import { getContext } from "@/lib/auth";
-import { PAYMENT_LABELS, type InventoryRow, type Sale } from "@/lib/types";
+import { PAYMENT_LABELS } from "@/lib/types";
+import type { InventoryRow } from "@/modules/inventario/types";
+import type { Sale } from "@/modules/ventas/types";
 import { formatDateTime, formatMoney, formatQty, todayIn, zonedDayStart } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Panel" };

@@ -6,17 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { AlertTriangle, Bell, Building2, Check, ChevronDown, CircleHelp, KeyRound, LayoutGrid, Loader2, LogOut, Menu, PackageX, Search, Truck, Volume2, VolumeX, X } from "lucide-react";
 import { toast } from "sonner";
 import { changePassword, logout, setBranch } from "@/modules/auth/actions";
-import type { AlertItem } from "@/app/api/alerts/route";
-import type { SearchGroup } from "@/app/api/search/route";
+import type { AlertItem, SearchGroup } from "./types";
 import { destinationsFor, navFor } from "@/lib/modules";
 import { playSound, setSoundEnabled, soundEnabled, subscribeSound } from "@/lib/sound";
 import { cn } from "@/lib/utils";
-import { useApp } from "./app-provider";
-import { Dialog, DialogFooter } from "./dialog";
+import { useApp } from "@/components/app-provider";
+import { Dialog, DialogFooter } from "@/components/dialog";
 import { NAV_ICONS } from "./nav-icons";
-import { InstallAppButton } from "./pwa";
-import { ThemeToggle } from "./theme";
-import { Button, Field, FormError, Input } from "./ui";
+import { InstallAppButton } from "@/components/pwa";
+import { ThemeToggle } from "@/components/theme";
+import { Button, Field, FormError, Input } from "@/components/ui";
 
 type MenuName = "search" | "alerts" | "help" | "apps" | "user" | null;
 

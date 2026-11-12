@@ -4,7 +4,25 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
+import { crudSave, crudSetActive } from "@/lib/crud/engine";
 import { firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
+import { categories, products } from "./schema";
+
+export async function saveProduct(id: string | null, values: Record<string, unknown>) {
+  return crudSave(products, id, values);
+}
+
+export async function setProductActive(id: string, active: boolean) {
+  return crudSetActive(products, id, active);
+}
+
+export async function saveCategory(id: string | null, values: Record<string, unknown>) {
+  return crudSave(categories, id, values);
+}
+
+export async function setCategoryActive(id: string, active: boolean) {
+  return crudSetActive(categories, id, active);
+}
 
 /** Ajuste por conteo físico: fija la cantidad real y deja rastro en el kardex. */
 export async function adjustStock(productId: string, newQuantity: number, note: string): Promise<ActionResult> {

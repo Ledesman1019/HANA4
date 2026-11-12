@@ -2,7 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { loadContext, type AppContext } from "@/lib/auth";
 import type { ExportRow } from "@/lib/export";
 import { fetchAll } from "@/lib/supabase/paginate";
-import { DOC_LABELS, MOVEMENT_LABELS, PAYMENT_LABELS, PURCHASE_STATUS } from "@/lib/types";
+import { DOC_LABELS } from "@/modules/ventas/types";
+import { MOVEMENT_LABELS } from "@/modules/inventario/types";
+import { PAYMENT_LABELS } from "@/lib/types";
+import { PURCHASE_STATUS } from "@/modules/compras/types";
 import { addDays, formatDateTime, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
 
 /**

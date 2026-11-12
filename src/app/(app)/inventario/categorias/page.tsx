@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireAccess } from "@/lib/auth";
-import type { Category } from "@/lib/types";
+import type { Category } from "@/modules/inventario/types";
 import { CategoriesView } from "@/modules/inventario/components/categories-view";
 
 export const metadata: Metadata = { title: "Categorías" };

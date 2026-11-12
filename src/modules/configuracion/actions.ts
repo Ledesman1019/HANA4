@@ -7,7 +7,23 @@ import { DENIED, fail, friendlyError, getContext, success } from "@/lib/auth";
 import { MODULES } from "@/lib/modules";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/types";
+import { crudSave, crudSetActive } from "@/lib/crud/engine";
 import { firstIssue } from "@/lib/validation";
+import { branches } from "./schema";
+
+export async function saveBranch(id: string | null, values: Record<string, unknown>): Promise<ActionResult> {
+  return crudSave(branches, id, values);
+}
+
+/** Debe quedar al menos una sucursal activa. */
+export async function setBranchActive(id: string, active: boolean): Promise<ActionResult> {
+  if (!active) {
+    const { supabase } = await getContext();
+    const { count } = await supabase.from("branches").select("id", { count: "exact", head: true }).eq("active", true);
+    if ((count ?? 0) <= 1) return fail("Debe quedar al menos una sucursal activa");
+  }
+  return crudSetActive(branches, id, active);
+}
 
 const roleId = z.string().regex(/^[a-z0-9_]{2,40}$/, "Rol inválido");
 

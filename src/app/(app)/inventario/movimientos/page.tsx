@@ -4,7 +4,7 @@ import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
 import { Badge, Card, EmptyState, Field, Input, Select, Table, Td, Th, type BadgeTone } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { MOVEMENT_LABELS } from "@/lib/types";
+import { MOVEMENT_LABELS } from "@/modules/inventario/types";
 import { addDays, formatDate, formatDateTime, formatQty, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Kardex" };

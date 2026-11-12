@@ -4,7 +4,7 @@ import { Store } from "lucide-react";
 import { buttonClass, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
-import type { CashSession } from "@/lib/types";
+import type { CashSession } from "@/modules/caja/types";
 import { todayIn } from "@/lib/utils";
 import { OpenCashCard } from "@/modules/caja/components/cash-forms";
 import { PosClient, type PosCustomer, type PosProduct } from "@/modules/ventas/components/pos-client";

@@ -1,5 +1,6 @@
 "use client";
 
+import { saveBranch, setBranchActive } from "@/modules/configuracion/actions";
 import { ResourceManager, type Column, type FieldDef } from "@/components/resource-manager";
 import { Badge } from "@/components/ui";
 import type { Branch } from "@/lib/types";
@@ -22,7 +23,7 @@ const fields: FieldDef[] = [
 export function BranchesView({ rows }: { rows: Branch[] }) {
   return (
     <ResourceManager
-      entity="branches"
+      actions={{ save: saveBranch, setActive: setBranchActive }}
       module="configuracion"
       singular="sucursal"
       rows={rows}
