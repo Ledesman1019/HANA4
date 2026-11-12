@@ -30,11 +30,12 @@ const fields: FieldDef[] = [
   { name: "address", label: "Dirección", maxLength: 200 },
 ];
 
-export function SuppliersView({ rows }: { rows: Supplier[] }) {
+export function SuppliersView({ rows, startNew }: { rows: Supplier[]; startNew?: boolean }) {
   return (
     <ResourceManager
       actions={{ save: saveSupplier, setActive: setSupplierActive }}
       module="proveedores"
+      startNew={startNew}
       singular="proveedor"
       rows={rows}
       columns={columns}

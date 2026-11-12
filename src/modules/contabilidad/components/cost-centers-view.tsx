@@ -17,11 +17,12 @@ const fields: FieldDef[] = [
   { name: "name", label: "Nombre", required: true, maxLength: 80, placeholder: "Administración" },
 ];
 
-export function CostCentersView({ rows }: { rows: CostCenter[] }) {
+export function CostCentersView({ rows, startNew }: { rows: CostCenter[]; startNew?: boolean }) {
   return (
     <ResourceManager
       actions={{ save: saveCostCenter, setActive: setCostCenterActive }}
       module="contabilidad"
+      startNew={startNew}
       singular="centro de costo"
       rows={rows}
       columns={columns}

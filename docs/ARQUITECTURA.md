@@ -6,7 +6,7 @@ ERP HANA4 es un **monolito modular**. Todo se despliega como una sola aplicació
 
 ```
 src/app        Rutas (páginas y endpoints). Son delgadas: cargan datos y componen vistas de los módulos.
-src/shell      Marco de la aplicación: menú lateral, barra superior, búsqueda global y avisos.
+src/shell      Marco de la aplicación: lanzador de mosaicos (menu.ts), barra inferior, búsqueda global y avisos.
 src/modules/*  Módulos de negocio (uno por área del ERP).
 src/components Kit de UI genérico: tablas, diálogos, formularios, exportación. No conoce módulos.
 src/lib        Kernel compartido: sesión y permisos, registro de módulos, motor CRUD, validación, utilidades.

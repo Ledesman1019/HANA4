@@ -23,10 +23,8 @@ async function AuthenticatedShell({ children }: { children: React.ReactNode }) {
 
 function ShellSkeleton() {
   return (
-    <div className="min-h-dvh lg:pl-60">
-      <div className="fixed inset-y-0 left-0 hidden w-60 bg-menu lg:block" />
-      <div className="h-16 border-b border-slate-200 bg-surface" />
-      <div className="mx-auto max-w-[1400px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="flex min-h-dvh flex-col">
+      <div className="mx-auto w-full max-w-[1400px] flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <Skeleton className="h-8 w-56" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
@@ -35,6 +33,7 @@ function ShellSkeleton() {
         </div>
         <Skeleton className="h-80" />
       </div>
+      <div className="h-14 bg-taskbar" />
     </div>
   );
 }

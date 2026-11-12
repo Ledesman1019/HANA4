@@ -124,6 +124,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/finanzas
         branches={branches.map((b) => ({ value: b.id, label: b.name }))}
         costCenters={((centersRes.data ?? []) as { id: string; code: string; name: string }[]).map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
         defaultDate={today.startsWith(month) ? today : from}
+        startNew={param(sp.nuevo) === "1"}
       />
     </>
   );

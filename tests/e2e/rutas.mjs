@@ -79,7 +79,13 @@ async function denied(cookie, path) {
 try {
   const a = await login("admin");
   console.log("— Administrador —");
-  await page(a, "/", ["Ventas de hoy", "Ventas por día", "ERP", "HANA4", "Buscar productos, clientes, comprobantes"]);
+  // Inicio al estilo ERP clásico: módulos SAP en mosaicos, áreas y funciones
+  await page(a, "/", ["Gestión de Materiales", "Ventas y Distribución", "Finanzas", "Controlling", "Recursos Humanos", "Acerca de"]);
+  await page(a, "/?m=mm&a=compras", ["Nuevo Proveedor", "Nueva Orden de Compra", "Órdenes de Compra y Recepción", "Atrás"], "lanzador MM › Compras");
+  await page(a, "/?m=general", ["Preferencias de Estación de Trabajo", "Mensajes de Tienda", "Calendario"], "lanzador General");
+  await page(a, "/panel", ["Ventas de hoy", "Ventas por día"]);
+  await page(a, "/mensajes", ["Mensajes de tienda"]);
+  await page(a, "/calendario", ["Vencimientos del mes"]);
   await page(a, "/pos", ["Punto de venta"]);
   const ventas = await page(a, "/ventas", ["Comprobante", "B001-"]);
   const saleId = ventas.match(/\/ventas\/([0-9a-f-]{36})/)?.[1];
@@ -160,8 +166,11 @@ try {
 
   console.log("— Vendedor (rol cajero) —");
   const c = await login("cajero");
-  const home = await page(c, "/", ["Ventas de hoy"]);
-  report(!home.includes('href="/finanzas"') && !home.includes('href="/configuracion"') && home.includes('href="/pos"'), "menú del vendedor: ve POS, no ve Finanzas ni Configuración");
+  const home = await page(c, "/", ["Ventas y Distribución"]);
+  report(home.includes('href="/?m=sd"') && !home.includes('href="/?m=fi"'), "inicio del vendedor: ve SD, no ve FI");
+  const sd = await page(c, "/?m=sd&a=ventas", ["Nueva Venta"], "lanzador del vendedor");
+  const basis = await page(c, "/?m=general", ["Calendario"], "General del vendedor");
+  report(sd.includes('href="/pos"') && !basis.includes('href="/configuracion"') && !basis.includes("Roles y Permisos"), "menú del vendedor: ve POS, no ve Configuración");
   await page(c, "/pos", ["Punto de venta"]);
   await page(c, "/cotizaciones/nueva", ["Emitir cotización"], "vendedor cotiza");
   await denied(c, "/cuentas-por-cobrar");

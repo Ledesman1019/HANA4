@@ -275,7 +275,7 @@ export function PosClient({ products, customers, today }: { products: PosProduct
 
       {/* Carrito */}
       <aside aria-label="Venta en curso" className="lg:sticky lg:top-20 lg:self-start">
-        <Card className="flex flex-col lg:max-h-[calc(100dvh-6.5rem)]">
+        <Card className="flex flex-col lg:max-h-[calc(100dvh-9.5rem)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <ShoppingCart className="h-4 w-4 text-slate-400" />

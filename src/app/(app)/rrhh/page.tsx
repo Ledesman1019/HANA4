@@ -170,6 +170,7 @@ export default async function HrPage({ searchParams }: PageProps<"/rrhh">) {
         branches={branches.map((b) => ({ value: b.id, label: b.name }))}
         users={users.map((u) => ({ value: u.id, label: `${u.full_name} · ${u.email}` }))}
         today={today}
+        startNew={param(sp.nuevo) === "1"}
       />
     </>
   );

@@ -1,5 +1,7 @@
 // E2E de la interfaz real con un administrador temporal:
+//  - Login: escribe usuario y clave en «Información de usuario», pulsa «Conectar» y llega al inicio.
 //  - CRUD por módulo: crea un centro de costo y un cliente, los desactiva y lo comprueba en la base.
+//  - Lanzador: Inicio → módulo → mosaico «Nuevo …» (abre el alta) → «Atrás»; Preferencias.
 //  - Exportación: descarga Excel, PDF y CSV (datos en pantalla y desde el servidor) y valida cada archivo.
 // Borra las filas, las descargas y el usuario temporal al terminar, aunque la prueba falle.
 //
@@ -95,6 +97,22 @@ try {
     return false;
   };
 
+  // --- Login desde el formulario (sin cookies previas) ---
+  await send("Page.enable");
+  await send("Page.navigate", { url: base + "/login" });
+  await waitFor(`!!document.querySelector('input[name="email"]')`);
+  let loggedIn = false;
+  for (let i = 0; i < 20 && !loggedIn; i++) {
+    await evaluate(`(() => {
+      const f = document.querySelector("form");
+      f.elements.namedItem("email").value = ${JSON.stringify(email)};
+      f.elements.namedItem("password").value = ${JSON.stringify(password)};
+      [...f.querySelectorAll("button")].find(b => b.textContent.includes("Conectar")).click();
+    })()`);
+    loggedIn = await waitFor(`location.pathname === "/" && document.body.textContent.includes("Gestión de Materiales")`, 4000);
+  }
+  report(loggedIn, "login: «Conectar» entra al inicio con los módulos SAP");
+
   const url = new URL(base);
   for (const [name, value] of jar) await send("Network.setCookie", { name, value, domain: url.hostname, path: "/", secure: url.protocol === "https:" });
   await send("Page.enable");
@@ -152,6 +170,33 @@ try {
     custName,
     "customers",
     { name: custName },
+  );
+
+  // --- Lanzador estilo ERP clásico ---
+  const clickText = (selector, text) =>
+    evaluate(`(() => { const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e => e.textContent.includes(${JSON.stringify(text)})); el?.click(); return !!el; })()`);
+  const path = () => evaluate("location.pathname + location.search");
+  async function clickUntil(selector, text, condition) {
+    for (let i = 0; i < 40; i++) {
+      await clickText(selector, text);
+      await sleep(250);
+      if (await evaluate(condition)) return true;
+    }
+    return false;
+  }
+
+  await send("Page.navigate", { url: base + "/" });
+  await waitFor(`!!document.querySelector('a[href="/?m=mm"]')`);
+  report(await clickUntil("a", "Gestión de Materiales", `location.search.includes("m=mm")`), "lanzador: abre el módulo MM", await path());
+  report(await waitFor(`document.body.textContent.includes("Listado de Productos")`), "lanzador: muestra las funciones de Inventario");
+  report(await clickUntil("a", "Nuevo Producto", `!!document.querySelector("dialog[open] form")`), "mosaico «Nuevo Producto» abre el formulario de alta", await path());
+  await evaluate(`document.querySelector("dialog[open]")?.close()`);
+  report(await clickUntil("a", "Atrás", `location.pathname === "/" && location.search.includes("a=inventario")`), "«Atrás» vuelve a los mosaicos de Inventario", await path());
+  await send("Page.navigate", { url: base + "/?m=general" });
+  await waitFor(`document.body.textContent.includes("Preferencias de Estación")`);
+  report(
+    await clickUntil("button", "Preferencias de Estación", `[...document.querySelectorAll("dialog[open]")].some(d => d.textContent.includes("Sucursal de trabajo"))`),
+    "mosaico «Preferencias de estación de trabajo» abre su ventana",
   );
 
   // --- Exportación ---

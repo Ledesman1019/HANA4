@@ -50,7 +50,7 @@ const fields: FieldDef[] = [
   { name: "address", label: "Dirección", wide: true, maxLength: 200 },
 ];
 
-export function CustomersView({ rows, initialQuery }: { rows: Customer[]; initialQuery?: string }) {
+export function CustomersView({ rows, initialQuery, startNew }: { rows: Customer[]; initialQuery?: string; startNew?: boolean }) {
   const { can, money } = useApp();
   // La línea de crédito solo la ve y la fija quien administra el crédito
   const manageCredit = can("cuentas_cobrar", "edit");
@@ -68,6 +68,7 @@ export function CustomersView({ rows, initialQuery }: { rows: Customer[]; initia
       actions={{ save: saveCustomer, setActive: setCustomerActive }}
       module="clientes"
       initialQuery={initialQuery}
+      startNew={startNew}
       singular="cliente"
       rows={rows}
       columns={can("cuentas_cobrar", "view") || manageCredit ? [...columns.slice(0, 2), creditColumn, ...columns.slice(2)] : columns}

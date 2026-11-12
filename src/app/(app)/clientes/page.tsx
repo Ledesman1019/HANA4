@@ -10,13 +10,14 @@ export const metadata: Metadata = { title: "Clientes" };
 
 export default async function CustomersPage({ searchParams }: PageProps<"/clientes">) {
   const { supabase } = await requireAccess("clientes", "view");
-  const q = param((await searchParams).q).slice(0, 60);
+  const sp = await searchParams;
+  const q = param(sp.q).slice(0, 60);
   const data = await fetchAll<Customer>((a, b) => supabase.from("customers").select("*").order("name").order("id").range(a, b));
 
   return (
     <>
       <PageHeader title="Clientes" description="Personas y empresas a las que vendes. Para emitir factura el cliente debe tener RUC." />
-      <CustomersView key={q} rows={data} initialQuery={q} />
+      <CustomersView key={q} rows={data} initialQuery={q} startNew={param(sp.nuevo) === "1"} />
     </>
   );
 }

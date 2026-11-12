@@ -46,6 +46,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/invent
         showCosts={showCosts}
         initialFilter={param(sp.filtro) === "bajo" ? "bajo" : "todos"}
         initialQuery={param(sp.q).slice(0, 60)}
+        startNew={param(sp.nuevo) === "1"}
         // Al llegar desde la búsqueda global o un aviso, la tabla arranca ya filtrada
         key={`${param(sp.filtro)}|${param(sp.q)}`}
       />

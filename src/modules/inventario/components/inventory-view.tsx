@@ -22,8 +22,10 @@ export function InventoryView({
   showCosts,
   initialFilter,
   initialQuery,
+  startNew,
 }: {
   initialQuery: string;
+  startNew?: boolean;
   rows: InventoryRow[];
   categories: Option[];
   otherBranches: Option[];
@@ -123,6 +125,7 @@ export function InventoryView({
       <ResourceManager
         actions={{ save: saveProduct, setActive: setProductActive }}
         module="inventario"
+        startNew={startNew}
         singular="producto"
         rows={shown}
         columns={columns}

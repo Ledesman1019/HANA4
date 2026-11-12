@@ -1,96 +1,68 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navFor } from "@/lib/modules";
-import { cn } from "@/lib/utils";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useApp } from "@/components/app-provider";
-import { BrandMark } from "@/components/brand";
-import { NAV_ICONS } from "./nav-icons";
-import { MobileClose, Topbar } from "./topbar";
+import { launcherHref, locate, menuFor } from "./menu";
+import { Taskbar } from "./taskbar";
 
-function isActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+/**
+ * Marco al estilo de los ERP de escritorio: sin encabezado superior.
+ * Abajo, la barra con el perfil, las áreas y los avisos; arriba de cada pantalla, solo «Atrás».
+ */
+export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { profile, permissions, settings } = useApp();
-  const items = navFor(profile.role, permissions);
-  const groups = [...new Set(items.map((i) => i.group))];
+  const { profile, permissions } = useApp();
+  const menu = useMemo(() => menuFor(profile.role, permissions), [profile.role, permissions]);
+  const onLauncher = pathname === "/";
 
   return (
-    <div className="flex h-full flex-col border-r border-menu-border bg-menu text-menu-text">
-      <div className="flex h-16 shrink-0 items-center gap-3 px-5">
-        <BrandMark className="h-10 w-10" />
-        <div className="min-w-0">
-          <p className="text-[15px] font-extrabold leading-tight tracking-tight text-white">
-            HANA<span className="text-brand-500">4</span> <span className="text-[11px] font-semibold text-menu-muted">ERP</span>
-          </p>
-          <p className="truncate text-[11px] leading-tight text-menu-muted">{settings.name}</p>
-        </div>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-2" aria-label="Principal">
-        {groups.map((group) => (
-          <div key={group} className="mb-4">
-            <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-menu-muted">{group}</p>
-            <ul className="space-y-0.5">
-              {items
-                .filter((i) => i.group === group)
-                .map((item) => {
-                  const Icon = NAV_ICONS[item.icon];
-                  const active = isActive(pathname, item.href);
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={onNavigate}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors",
-                          active ? "bg-menu-active text-white" : "hover:bg-menu-active/60 hover:text-white",
-                        )}
-                      >
-                        {active && <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-brand-500" />}
-                        <Icon className={cn("h-[18px] w-[18px] shrink-0", active ? "text-brand-500" : "text-menu-muted group-hover:text-menu-text")} />
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-            </ul>
-          </div>
-        ))}
-      </nav>
-
-      <p className="shrink-0 border-t border-menu-border px-5 py-3 text-[10px] text-menu-muted">ERP HANA4 · v1.0</p>
+    <div className="flex min-h-dvh flex-col">
+      {onLauncher ? (
+        <div className="flex-1">{children}</div>
+      ) : (
+        <main className="flex-1 bg-app">
+          <BackBar pathname={pathname} menu={menu} />
+          <div className="mx-auto w-full max-w-[1400px] px-4 pb-8 pt-3 sm:px-6 lg:px-8">{children}</div>
+        </main>
+      )}
+      <Taskbar menu={menu} />
     </div>
   );
 }
 
-export function Shell({ children }: { children: ReactNode }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+/**
+ * «Atrás» lleva al nivel anterior del menú: de un detalle (ej. /ventas/123) a su listado,
+ * y de una pantalla del menú a los mosaicos de su área.
+ */
+function BackBar({ pathname, menu }: { pathname: string; menu: ReturnType<typeof menuFor> }) {
+  const place = locate(menu, pathname);
+  const tilePath = place?.area.tiles.map((t) => t.href.split("?")[0]).find((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const isDetail = Boolean(tilePath && pathname !== tilePath);
+  const href = isDetail ? tilePath! : place ? launcherHref(place.module.key, place.area.key) : launcherHref();
 
   return (
-    <div className="min-h-dvh lg:pl-60 print:pl-0">
-      <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-60 lg:block">
-        <Sidebar />
-      </aside>
-
-      {mobileOpen && (
-        <div className="no-print fixed inset-0 z-40 lg:hidden">
-          <button type="button" aria-label="Cerrar menú" className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-64 shadow-2xl">
-            <Sidebar onNavigate={() => setMobileOpen(false)} />
-            <MobileClose onClick={() => setMobileOpen(false)} />
-          </aside>
-        </div>
+    <div className="no-print mx-auto flex w-full max-w-[1400px] items-center gap-3 px-4 pt-4 sm:px-6 lg:px-8">
+      <Link
+        href={href}
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-slate-300 bg-surface pl-2.5 pr-3.5 text-sm font-semibold text-slate-700 shadow-xs transition-colors hover:border-brand-500 hover:text-link"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Atrás
+      </Link>
+      {place && (
+        <p className="flex min-w-0 items-center gap-1 truncate text-xs font-medium text-slate-500">
+          <Link href={launcherHref(place.module.key)} className="font-mono font-bold text-link hover:underline">
+            {place.module.code}
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+          <Link href={launcherHref(place.module.key, place.area.key)} className="truncate hover:underline">
+            {place.area.label}
+          </Link>
+        </p>
       )}
-
-      <Topbar onOpenMenu={() => setMobileOpen(true)} />
-      <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }

@@ -2,11 +2,22 @@
 
 Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, inventario, compras, finanzas y personal** en una sola aplicación, con roles configurables y permisos por módulo.
 
+## Navegación al estilo ERP clásico
+
+- **Login:** ventana «Información de usuario» (usuario, clave y base de datos, con los botones Conectar y Salir) sobre el escritorio azul de la marca.
+- **Inicio:** mosaicos grandes con los módulos SAP que el rol puede usar: **MM** Gestión de Materiales, **SD** Ventas y Distribución, **FI** Finanzas, **CO** Controlling, **HCM** Recursos Humanos y **BASIS** General.
+- **Dentro de un módulo:** sus áreas son pestañas de la barra inferior (por ejemplo, MM tiene Inventario y Compras) y cada función es un mosaico: Listado de productos, Nuevo producto, Kardex, Nuevo proveedor, Órdenes de compra… Los mosaicos «Nuevo …» abren el formulario de alta directamente.
+- **Sin encabezado superior:** cada pantalla tiene solo el botón **← Atrás**. Lleva del detalle al listado y del listado a los mosaicos de su área.
+- **Barra inferior:** perfil (nombre, rol, preferencias, cambiar clave, cerrar sesión), pestañas, buscador (`Ctrl K`), avisos y sucursal con la hora.
+- **General (BASIS):** Preferencias de estación de trabajo (tema, sonido, sucursal, clave e instalación), Mensajes de tienda (avisos operativos), Calendario (vencimientos de cobros, pagos y lotes) y Configuración.
+
+El menú completo está en [`src/shell/menu.ts`](src/shell/menu.ts). Cada mosaico declara el permiso que exige, así que cada rol ve solo lo suyo.
+
 ## Módulos
 
 | Área | Qué hace |
 |---|---|
-| **Panel** | Ventas del día y de la semana, ticket promedio, utilidad, stock por reponer, últimas ventas. |
+| **Panel** (CO) | Ventas del día y de la semana, ticket promedio, utilidad, stock por reponer, últimas ventas. |
 | **Punto de venta** | Catálogo con fotos, búsqueda, lector de código de barras (USB o cámara), descuentos, boleta/factura/ticket, efectivo/tarjeta/Yape/Plin, vuelto, comprobante imprimible. |
 | **Ventas** | Historial con filtros, detalle del comprobante, anulación con devolución de stock. Ventas al contado o al crédito. |
 | **Cotizaciones** | Ofertas al cliente con precio congelado y vigencia; se convierten en venta con un clic. |
@@ -29,7 +40,7 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 Además:
 
 - **Exportación** de cada listado a Excel (.xlsx con formato y totales), PDF (con encabezado de la empresa y numeración de páginas), CSV e impresión.
-- **Aplicación instalable (PWA)**: se instala en el celular o la PC desde el menú de usuario, con ícono propio y accesos directos. Sin conexión muestra un aviso en lugar de datos desactualizados.
+- **Aplicación instalable (PWA)**: se instala en el celular o la PC desde Preferencias de estación de trabajo, con ícono propio y accesos directos. Sin conexión muestra un aviso en lugar de datos desactualizados.
 - **Avisos con sonido**: stock agotado o bajo, compras por recibir, caja abierta de más y comprobantes sin aceptar. El sonido se silencia desde la campana.
 - Búsqueda global (`Ctrl K`), modo claro/oscuro y diseño adaptable a celular.
 
@@ -59,7 +70,7 @@ Una sola aplicación desplegable, dividida en módulos de negocio con fronteras 
 ```
 src/
   app/                      Rutas (capa de composición: páginas delgadas)
-  shell/                    Marco: menú lateral, barra superior, búsqueda global y avisos
+  shell/                    Marco: lanzador de mosaicos, barra inferior, búsqueda global y avisos
   modules/<módulo>/         Un directorio por módulo de negocio (15 en total)
     actions.ts                casos de uso (Server Actions) con validación y permiso
     schema.ts                 entidades CRUD del módulo (internas)

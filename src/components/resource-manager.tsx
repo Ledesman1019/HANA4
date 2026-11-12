@@ -54,6 +54,8 @@ type Props<T> = {
   searchPlaceholder?: string;
   /** Texto inicial del buscador (p. ej. al llegar desde la búsqueda global) */
   initialQuery?: string;
+  /** Abre el formulario de alta al entrar (mosaicos «Nuevo …» del lanzador: ?nuevo=1) */
+  startNew?: boolean;
   pageSize?: number;
   /** Habilita «Exportar» (Excel, PDF, CSV, imprimir) sobre las filas filtradas */
   exportable?: { title: string; filename: string; columns: ExportField<T>[] };
@@ -79,6 +81,7 @@ export function ResourceManager<T>({
   toolbar,
   searchPlaceholder,
   initialQuery = "",
+  startNew = false,
   pageSize = 20,
   exportable,
 }: Props<T>) {
@@ -91,7 +94,7 @@ export function ResourceManager<T>({
 
   const [query, setQuery] = useState(initialQuery);
   const [page, setPage] = useState(0);
-  const [editing, setEditing] = useState<T | "new" | null>(null);
+  const [editing, setEditing] = useState<T | "new" | null>(startNew && canCreate ? "new" : null);
   const [deleting, setDeleting] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

@@ -16,7 +16,7 @@ const STATUS: Record<Employee["status"], { label: string; tone: BadgeTone }> = {
 
 type Option = { value: string; label: string };
 
-export function EmployeesView({ rows, branches, users, today }: { rows: Employee[]; branches: Option[]; users: Option[]; today: string }) {
+export function EmployeesView({ rows, branches, users, today, startNew }: { rows: Employee[]; branches: Option[]; users: Option[]; today: string; startNew?: boolean }) {
   const { money } = useApp();
   const branchName = (id: string | null) => branches.find((b) => b.value === id)?.label ?? "—";
 
@@ -60,6 +60,7 @@ export function EmployeesView({ rows, branches, users, today }: { rows: Employee
     <ResourceManager
       actions={{ save: saveEmployee }}
       module="rrhh"
+      startNew={startNew}
       singular="colaborador"
       rows={rows}
       columns={columns}

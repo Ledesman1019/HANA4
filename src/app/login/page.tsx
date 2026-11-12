@@ -1,97 +1,104 @@
 import type { Metadata } from "next";
-import { BarChart3, Boxes, ShieldCheck, ShoppingCart } from "lucide-react";
-import { BrandLogo, BrandMark } from "@/components/brand";
-import { ThemeToggle } from "@/components/theme";
+import { BadgePercent, Boxes, ChartNoAxesCombined, CreditCard, LayoutGrid, Settings, ShoppingBag, Store, UsersRound, type LucideIcon } from "lucide-react";
+import { BrandMark } from "@/components/brand";
+import { databaseLabel } from "@/lib/supabase/env";
 import { LoginForm } from "@/modules/auth/components/login-form";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
 
-const FEATURES = [
-  { icon: ShoppingCart, title: "Ventas y caja", text: "Punto de venta, comprobantes y arqueo de cada turno." },
-  { icon: Boxes, title: "Inventario y compras", text: "Stock por sucursal, kardex y reposición a tiempo." },
-  { icon: BarChart3, title: "Finanzas y reportes", text: "Resultados, comisiones e indicadores del negocio." },
+/** Módulos alrededor del monitor central: ángulo en grados (0 = derecha, 90 = abajo). */
+const HUB: { icon: LucideIcon; angle: number; label: string }[] = [
+  { icon: UsersRound, angle: 270, label: "Clientes" },
+  { icon: BadgePercent, angle: 315, label: "Ventas" },
+  { icon: Store, angle: 0, label: "Sucursales" },
+  { icon: CreditCard, angle: 45, label: "Caja" },
+  { icon: ShoppingBag, angle: 90, label: "Compras" },
+  { icon: Settings, angle: 135, label: "Configuración" },
+  { icon: ChartNoAxesCombined, angle: 180, label: "Reportes" },
+  { icon: Boxes, angle: 225, label: "Inventario" },
 ];
+const R = 40; // radio en % del diagrama
 
 export default function LoginPage() {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      {/* Panel de marca */}
-      <aside className="relative hidden overflow-hidden bg-ink text-white lg:block">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-[radial-gradient(120%_80%_at_0%_0%,rgba(59,110,246,0.55),transparent_60%),radial-gradient(90%_70%_at_100%_100%,rgba(29,65,216,0.5),transparent_55%)]"
-        />
-        {/* Trama de puntos */}
-        <div aria-hidden className="absolute inset-0 opacity-[0.18] [background-image:radial-gradient(circle,#fff_1px,transparent_1.2px)] [background-size:22px_22px]" />
-        {/* Borde diagonal hacia el formulario */}
-        <div aria-hidden className="absolute inset-y-0 -right-px w-28 bg-app [clip-path:polygon(100%_0,100%_100%,0_100%)]" />
-        <div aria-hidden className="absolute inset-y-0 right-0 w-28 [clip-path:polygon(100%_0,calc(100%-6px)_0,0_100%,6px_100%)] bg-brand-500" />
+    <div className="desk-bg relative flex min-h-dvh flex-col overflow-hidden text-white">
+      {/* Ventana de acceso, arriba a la izquierda como en los ERP de escritorio */}
+      <section
+        aria-labelledby="login-title"
+        className="relative z-20 mx-4 mt-4 w-auto rounded-[4px] border border-white/70 bg-[#f3f5f8] text-slate-900 shadow-[0_18px_50px_-12px_rgb(0_0_0/0.55)] sm:absolute sm:left-6 sm:top-6 sm:mx-0 sm:mt-0 sm:w-80"
+      >
+        <h1 id="login-title" className="border-b border-slate-300 bg-gradient-to-b from-white to-slate-100 px-3 py-2 text-center text-[13px] font-semibold text-slate-800">
+          Información de Usuario
+        </h1>
+        <div className="p-4">
+          <LoginForm database={databaseLabel()} />
+        </div>
+      </section>
 
-        <div className="relative flex h-full flex-col px-14 py-12 xl:px-20">
-          <div className="flex items-center gap-3.5">
-            <BrandMark className="h-14 w-14 rounded-2xl p-1.5" />
-            <div>
-              <p className="text-2xl font-extrabold leading-tight tracking-tight">
-                HANA<span className="text-brand-500">4</span>
-              </p>
-              <p className="text-sm text-white/70">ERP Empresarial</p>
+      {/* Título y diagrama de módulos */}
+      <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-24 pt-10 sm:pt-12">
+        <p className="text-center text-2xl font-extrabold tracking-tight drop-shadow-sm [text-wrap:balance] sm:text-5xl">
+          ERP HANA<span className="text-red-400">4</span> <span className="font-bold text-white/90">Empresarial</span>
+        </p>
+
+        <div aria-hidden className="relative mt-6 aspect-square w-[min(88vw,32rem)] sm:mt-10">
+          <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
+            {HUB.map(({ angle }) => {
+              const rad = (angle * Math.PI) / 180;
+              return (
+                <line
+                  key={angle}
+                  x1={50 + Math.cos(rad) * 15}
+                  y1={50 + Math.sin(rad) * 15}
+                  x2={50 + Math.cos(rad) * (R - 7)}
+                  y2={50 + Math.sin(rad) * (R - 7)}
+                  stroke="rgb(255 255 255 / 0.55)"
+                  strokeWidth="0.35"
+                  strokeDasharray="1.6 1.2"
+                />
+              );
+            })}
+          </svg>
+
+          {HUB.map(({ icon: Icon, angle, label }) => {
+            const rad = (angle * Math.PI) / 180;
+            return (
+              <span
+                key={label}
+                title={label}
+                style={{ left: `${50 + Math.cos(rad) * R}%`, top: `${50 + Math.sin(rad) * R}%` }}
+                className="absolute flex h-[16%] w-[16%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl border border-dashed border-white/40 p-[1.5%]"
+              >
+                <span className="flex h-full w-full items-center justify-center rounded-lg bg-white/15 shadow-inner">
+                  <Icon className="h-1/2 w-1/2" strokeWidth={1.75} />
+                </span>
+              </span>
+            );
+          })}
+
+          {/* Monitor central */}
+          <div className="absolute left-1/2 top-1/2 flex w-[30%] -translate-x-1/2 -translate-y-[58%] flex-col items-center">
+            <div className="flex aspect-[4/3] w-full items-center justify-center rounded-lg border-[3px] border-white bg-white/10">
+              <LayoutGrid className="h-3/5 w-3/5" strokeWidth={1.4} />
             </div>
-          </div>
-
-          <div className="my-auto max-w-lg py-10 pr-16">
-            <h2 className="text-[2.6rem] font-extrabold leading-[1.1] tracking-tight">
-              Todo tu negocio,
-              <br />
-              <span className="text-brand-500">en un solo lugar</span>
-            </h2>
-            <p className="mt-5 text-lg leading-relaxed text-white/75">Conectando procesos, impulsando tu negocio: cada venta actualiza inventario, caja, finanzas y comisiones al instante.</p>
-
-            <ul className="mt-10 space-y-5">
-              {FEATURES.map((f) => (
-                <li key={f.title} className="flex items-center gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15 backdrop-blur">
-                    <f.icon className="h-5 w-5" />
-                  </span>
-                  <span>
-                    <span className="block font-bold">{f.title}</span>
-                    <span className="block text-sm text-white/65">{f.text}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <p className="text-xs text-white/45">© HANA4 · ERP Empresarial</p>
-        </div>
-      </aside>
-
-      {/* Formulario */}
-      <main className="flex min-h-dvh flex-col bg-app px-5 py-6 sm:px-10">
-        <div className="flex items-center justify-end gap-3 text-sm text-slate-500">
-          <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="h-4 w-4" />
-            Acceso seguro al sistema
-          </span>
-          <ThemeToggle className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-500 hover:bg-slate-200/70 hover:text-slate-900" />
-        </div>
-
-        <div className="m-auto w-full max-w-[30rem] py-8">
-          {/* En pantallas pequeñas el logo va aquí (el panel de marca se oculta) */}
-          <div className="mb-6 flex justify-center lg:hidden">
-            <span className="rounded-2xl bg-white px-5 py-3 shadow-xs ring-1 ring-black/5">
-              <BrandLogo className="w-52" />
-            </span>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-surface p-7 shadow-pop sm:p-11">
-            <span aria-hidden className="block h-1 w-12 rounded-full bg-brand-600" />
-            <h1 className="mt-7 text-3xl font-extrabold tracking-tight text-slate-900">Iniciar sesión</h1>
-            <p className="mb-8 mt-2.5 text-[15px] leading-relaxed text-slate-500">Ingrese sus credenciales para acceder al sistema de gestión de la empresa.</p>
-            <LoginForm />
-            <p className="mt-7 border-t border-slate-100 pt-5 text-center text-sm text-slate-500">¿No tiene cuenta? Solicítela al administrador del sistema.</p>
+            <div className="h-[6%] w-[8%] min-h-2 bg-white" />
+            <div className="h-1 w-1/3 rounded-full bg-white" />
+            <p className="mt-2 text-[clamp(1.25rem,5vw,2.4rem)] font-extrabold leading-none tracking-tight">HANA4</p>
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* Marca de agua */}
+      <div aria-hidden className="pointer-events-none absolute bottom-5 right-6 hidden items-center gap-3 sm:flex">
+        <BrandMark className="h-14 w-14 rounded-2xl p-1" />
+        <div className="leading-none">
+          <p className="text-4xl font-extrabold tracking-tight">
+            hana<span className="text-sky-300">4</span>
+          </p>
+          <p className="mt-1 text-sm font-semibold text-white/80">erp empresarial</p>
+        </div>
+      </div>
+      <p className="absolute bottom-2 left-3 text-[11px] text-white/60">Conexión segura · ERP HANA4 v1.0</p>
     </div>
   );
 }

@@ -155,7 +155,7 @@ export default async function CostCentersPage({ searchParams }: PageProps<"/cont
       )}
 
       <h2 className="mb-3 text-sm font-semibold text-slate-900">Centros de costo</h2>
-      <CostCentersView rows={centers} />
+      <CostCentersView rows={centers} startNew={param(sp.nuevo) === "1"} />
     </>
   );
 }

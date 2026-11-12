@@ -35,6 +35,13 @@
   --color-menu-active: #1a2233;
   --color-menu-border: #1b2232;
 
+  /* Escritorio clásico: fondo azul del lanzador y barra inferior */
+  --color-desk: #1f74cf;
+  --color-desk-hi: #3d93e6;
+  --color-desk-lo: #0b55b0;
+  --color-taskbar: #1c2a5e;
+  --color-taskbar-active: #34488f;
+
   /* Botones de estado: iguales en claro y oscuro (texto blanco encima) */
   --color-ok: #059669;
   --color-ok-hover: #047857;
@@ -64,6 +71,12 @@
   --color-menu-muted: #666c7d;
   --color-menu-active: #151a25;
   --color-menu-border: #151923;
+
+  --color-desk: #123c70;
+  --color-desk-hi: #1c5194;
+  --color-desk-lo: #0a2a52;
+  --color-taskbar: #0b1330;
+  --color-taskbar-active: #22336b;
 
   /* Escala neutra invertida: 50 = superficie sutil … 900 = texto principal */
   --color-slate-50: #161a24;
@@ -231,4 +244,17 @@ dialog[open] {
   .print-page :is(dl, p).bg-slate-50 {
     background: #f1f3f5 !important;
   }
+}
+
+/* ---------- Escritorio clásico (lanzador y login) ---------- */
+.desk-bg {
+  background-color: var(--color-desk);
+  background-image:
+    /* cuña clara diagonal, como un haz de luz desde abajo a la derecha */
+    linear-gradient(202deg, transparent 0 58%, rgb(255 255 255 / 0.07) 58% 100%),
+    conic-gradient(from 205deg at 50% 60%, rgb(255 255 255 / 0) 0deg, rgb(255 255 255 / 0.07) 16deg, rgb(255 255 255 / 0) 32deg, rgb(255 255 255 / 0.05) 74deg, rgb(255 255 255 / 0) 100deg, rgb(255 255 255 / 0.06) 150deg, rgb(255 255 255 / 0) 180deg),
+    linear-gradient(160deg, var(--color-desk-hi), var(--color-desk) 52%, var(--color-desk-lo));
+}
+.desk-tile {
+  background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.045) 0 2px, transparent 2px 9px);
 }

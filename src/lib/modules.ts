@@ -160,7 +160,7 @@ export type NavItem = {
 };
 
 export const NAV: NavItem[] = [
-  { href: "/", label: "Panel", desc: "Resumen del negocio", icon: "dashboard", code: "HOME", group: "General", module: null, needs: "access" },
+  { href: "/panel", label: "Panel", desc: "Resumen del negocio", icon: "dashboard", code: "HOME", group: "General", module: null, needs: "access" },
   { href: "/pos", label: "Punto de venta", desc: "Cobrar y emitir comprobantes", icon: "pos", code: "VA01", group: "Ventas", module: "ventas", needs: "create" },
   { href: "/ventas", label: "Ventas", desc: "Historial de comprobantes", icon: "sales", code: "VA05", group: "Ventas", module: "ventas", needs: "access" },
   { href: "/cotizaciones", label: "Cotizaciones", desc: "Ofertas con precio congelado", icon: "quotes", code: "VA25", group: "Ventas", module: "ventas", needs: "access" },

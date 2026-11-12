@@ -11,7 +11,21 @@ import { formatDate } from "@/lib/utils";
 type Option = { value: string; label: string };
 const toOptions = (labels: Record<string, string>, keys?: string[]) => (keys ?? Object.keys(labels)).map((value) => ({ value, label: labels[value] }));
 
-export function ExpensesView({ rows, branchId, branches, costCenters, defaultDate }: { rows: Expense[]; branchId: string; branches: Option[]; costCenters: Option[]; defaultDate: string }) {
+export function ExpensesView({
+  rows,
+  branchId,
+  branches,
+  costCenters,
+  defaultDate,
+  startNew,
+}: {
+  rows: Expense[];
+  branchId: string;
+  branches: Option[];
+  costCenters: Option[];
+  defaultDate: string;
+  startNew?: boolean;
+}) {
   const centerName = (id: string | null) => costCenters.find((c) => c.value === id)?.label ?? "—";
   const { money } = useApp();
 
@@ -38,6 +52,7 @@ export function ExpensesView({ rows, branchId, branches, costCenters, defaultDat
     <ResourceManager
       actions={{ save: saveExpense, remove: deleteExpense }}
       module="finanzas"
+      startNew={startNew}
       singular="gasto"
       rows={rows}
       columns={columns}
