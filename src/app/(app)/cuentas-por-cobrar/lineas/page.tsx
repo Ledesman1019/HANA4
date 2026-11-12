@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { param } from "@/components/filters";
 import { PageHeader } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
@@ -10,6 +11,8 @@ export const metadata: Metadata = { title: "Líneas de crédito" };
 /** Control de crédito: a quién se le vende al crédito, hasta cuánto y a cuántos días. */
 export default async function CreditLinesPage({ searchParams }: PageProps<"/cuentas-por-cobrar/lineas">) {
   const { supabase, can } = await requireAccess("cuentas_cobrar", "view");
+  // Control de crédito: quien lo asigna o quien supervisa finanzas (el cajero solo cobra)
+  if (!can("cuentas_cobrar", "edit") && !can("finanzas", "view")) redirect("/");
   const q = param((await searchParams).q).slice(0, 60);
   const [customers, statusRes] = await Promise.all([
     fetchAll<Omit<CreditLine, "debt" | "overdue">>((a, b) =>

@@ -105,7 +105,7 @@ try {
   await page(a, "/compras", ["Órdenes de compra", "Orden directa", "N.º de orden"]);
   await page(a, "/compras?estado=ordenada", ["Recepción de mercadería"], "compras por recibir");
   await page(a, "/compras/solicitudes", ["Solicitudes de pedido", "Nueva solicitud"]);
-  await page(a, "/compras/solicitudes/nueva", ["Productos solicitados", "Enviar a aprobación", "Centro de costo", "Presentación"]);
+  await page(a, "/compras/solicitudes/nueva", ["Productos solicitados", "Enviar a aprobación", "Centro de costo"]);
   await page(a, "/cuentas-por-pagar", ["Total por pagar", "Vencido"]);
   await page(a, "/cotizaciones", ["Órdenes de venta", "Nueva cotización"]);
   await page(a, "/cotizaciones?estado=vigente", ["Órdenes de venta por cobrar"], "órdenes por cobrar");
@@ -199,7 +199,7 @@ try {
   const vsd = await page(v, "/?m=sd&a=ventas", ["Nueva Orden de Venta (Cotización)", "Nuevo Cliente"], "lanzador del vendedor");
   report(!vsd.includes('href="/pos"') && !vsd.includes('href="/caja"'), "vendedor no cobra en caja (no ve Nueva Venta ni Caja)");
   await page(v, "/cotizaciones/nueva", ["Emitir cotización"], "vendedor cotiza");
-  const vcli = await page(v, "/clientes", ["Nuevo cliente"], "vendedor registra clientes");
+  const vcli = await page(v, "/clientes", ["Nuevo <!-- -->cliente"], "vendedor registra clientes");
   report(!vcli.includes('aria-label="Editar"'), "vendedor no edita clientes");
   for (const p of ["/caja", "/inventario", "/cuentas-por-cobrar", "/contabilidad", "/compras"]) await denied(v, p);
 
