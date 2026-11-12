@@ -19,6 +19,8 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 | **Cuentas por pagar** | Facturas de proveedor verificadas contra la orden, bloqueo por diferencias, pagos totales o parciales, vencimientos. |
 | **Proveedores** | Padrón de proveedores. |
 | **Finanzas** | Estado de resultados mensual y registro de gastos por categoría. |
+| **Lotes y vencimientos** | Productos perecibles con lote y fecha de vencimiento; la venta sale por FEFO y nunca toma mercadería vencida. |
+| **Centros de costo** | Resultado por sucursal (centro de beneficio) y gasto por área (administración, ventas, logística o los que crees). |
 | **Contabilidad** | Plan de cuentas (PCGE), asientos automáticos de cada operación, libro diario, libro mayor, balance de comprobación, estado de resultados, situación financiera, asientos manuales y cierre de periodos. |
 | **Personal** | Colaboradores, cargos, estado y planilla mensual. |
 | **Reportes** | Ventas por día, categoría, medio de pago, vendedor y sucursal; top de productos; exportación CSV. |
@@ -142,9 +144,22 @@ Una anulación genera el **extorno** (asiento inverso); nada se borra. Al cerrar
 
 No se contabilizan solos los ingresos y retiros manuales de caja ni las transferencias entre sucursales: el contador los registra con un asiento manual si corresponde.
 
+### Lotes y vencimientos
+
+Se activan por producto (Inventario → editar → «Controla lote y fecha de vencimiento»). Desde entonces:
+
+- Al recibir una compra se pide el **lote y el vencimiento**; no se recibe mercadería ya vencida.
+- La venta toma primero lo que **vence antes (FEFO)** y **nunca vende un lote vencido**: si solo queda stock vencido, la venta se bloquea con el motivo.
+- Las anulaciones devuelven al mismo lote; las transferencias llevan el lote y su vencimiento a la otra sucursal; los ajustes a la baja retiran primero lo vencido.
+- Pantalla **Lotes y vencimientos** (`MB5M`) y avisos en la campana por lotes vencidos o que vencen en 30 días.
+
+### Centros de costo
+
+Cada línea de gasto del libro diario lleva su centro de costo: los gastos lo eligen (o lo toman de su categoría), las comisiones y el costo de ventas van a Ventas, las mermas a Logística. La pantalla **Centros de costo** (`KSB1`) muestra el resultado de cada sucursal y el gasto de cada área.
+
 ### Códigos de transacción
 
-Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `VA21` nueva cotización, `VA25` cotizaciones, `FBL5N` cuentas por cobrar, `FB03` libro diario, `FAGLL03` libro mayor, `F.08` balances, `FS00` plan de cuentas, `FB50` asiento manual, `OB52` periodos, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
+Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `VA21` nueva cotización, `VA25` cotizaciones, `FBL5N` cuentas por cobrar, `FB03` libro diario, `FAGLL03` libro mayor, `F.08` balances, `FS00` plan de cuentas, `FB50` asiento manual, `OB52` periodos, `MB5M` lotes y vencimientos, `KSB1` centros de costo, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
 
 ### Transacciones
 
@@ -185,6 +200,7 @@ Los precios y totales se calculan en la base de datos; el navegador nunca los en
    5. [`supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql`](supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql)
    6. [`supabase/migrations/0006_cotizaciones_credito_cuentas_por_cobrar.sql`](supabase/migrations/0006_cotizaciones_credito_cuentas_por_cobrar.sql)
    7. [`supabase/migrations/0007_contabilidad.sql`](supabase/migrations/0007_contabilidad.sql)
+   8. [`supabase/migrations/0008_lotes_centros_costo.sql`](supabase/migrations/0008_lotes_centros_costo.sql)
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Las cuentas se crean desde el sistema.
 
 ### 2. Variables de entorno

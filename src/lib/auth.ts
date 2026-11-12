@@ -11,7 +11,7 @@ import type { ActionResult, Branch, Profile, Settings } from "./types";
 export const BRANCH_COOKIE = "erp_branch";
 
 /** Versión del esquema (última migración) que necesita esta versión de la aplicación. */
-export const REQUIRED_SCHEMA = 7;
+export const REQUIRED_SCHEMA = 8;
 
 type Loaded =
   | {

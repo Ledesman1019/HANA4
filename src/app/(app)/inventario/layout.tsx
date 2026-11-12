@@ -9,6 +9,7 @@ export default function InventoryLayout({ children }: LayoutProps<"/inventario">
         items={[
           { href: "/inventario", label: "Productos y stock" },
           { href: "/inventario/movimientos", label: "Kardex" },
+          { href: "/inventario/lotes", label: "Lotes y vencimientos" },
           { href: "/inventario/categorias", label: "Categorías" },
         ]}
       />

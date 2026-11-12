@@ -24,9 +24,10 @@ export default async function FinancePage({ searchParams }: PageProps<"/finanzas
   const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
   const to = addDays(nextMonth, -1);
 
-  const [salesRes, expensesRes] = await Promise.all([
+  const [salesRes, expensesRes, centersRes] = await Promise.all([
     supabase.rpc("report_sales_by_day", { p_from: from, p_to: to, p_branch: branch.id }),
     supabase.from("expenses").select("*").eq("branch_id", branch.id).gte("expense_date", from).lte("expense_date", to).order("expense_date", { ascending: false }),
+    supabase.from("cost_centers").select("id, code, name").eq("active", true).order("code"),
   ]);
 
   const days = (salesRes.data ?? []) as Day[];
@@ -121,6 +122,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/finanzas
         rows={expenses}
         branchId={branch.id}
         branches={branches.map((b) => ({ value: b.id, label: b.name }))}
+        costCenters={((centersRes.data ?? []) as { id: string; code: string; name: string }[]).map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
         defaultDate={today.startsWith(month) ? today : from}
       />
     </>

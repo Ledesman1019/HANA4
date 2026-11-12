@@ -82,6 +82,19 @@ export function InventoryView({
     { name: "cost", label: "Costo unitario (sin impuesto)", type: "number", required: true, defaultValue: "0" },
     { name: "price", label: "Precio de venta (con impuesto)", type: "number", required: true, defaultValue: "0" },
     { name: "min_stock", label: "Stock mínimo", type: "number", step: "0.001", required: true, defaultValue: "0", hint: "Se alerta al llegar a esta cantidad." },
+    {
+      name: "track_lots",
+      label: "Lotes y vencimiento",
+      type: "select",
+      required: true,
+      defaultValue: "false",
+      options: [
+        { value: "false", label: "No controla lotes" },
+        { value: "true", label: "Controla lote y fecha de vencimiento (FEFO)" },
+      ],
+      hint: "Para perecibles: se pide el lote al recibir y se vende primero lo que vence antes.",
+      wide: true,
+    },
     { name: "description", label: "Descripción", type: "textarea", maxLength: 500 },
   ];
 

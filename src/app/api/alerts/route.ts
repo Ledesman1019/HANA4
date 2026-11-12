@@ -20,7 +20,9 @@ export async function GET() {
 
   const seesReceivables = can("cuentas_cobrar", "view");
 
-  const [out, low, pending, session, unsent, toApprove, overdue, lateCustomers] = await Promise.all([
+  const soon = new Date(Date.parse(today) + 30 * 86_400_000).toISOString().slice(0, 10);
+
+  const [out, low, pending, session, unsent, toApprove, overdue, lateCustomers, expiredLots, expiringLots] = await Promise.all([
     seesStock ? stockQuery().lte("quantity", 0) : null,
     seesStock ? stockQuery().eq("low_stock", true).gt("quantity", 0) : null,
     seesPurchases ? supabase.from("purchases").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "ordenada") : null,
@@ -31,6 +33,9 @@ export async function GET() {
     approves ? supabase.from("purchase_requisitions").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "pendiente") : null,
     seesPayables ? supabase.from("supplier_invoices").select("id", { count: "exact", head: true }).in("status", ["pendiente", "parcial", "bloqueada"]).lt("due_date", today) : null,
     // Ventas al crédito vencidas sin cobrar
+    // Lotes vencidos o por vencer con stock en esta sucursal
+    seesStock ? supabase.from("lots").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).gt("quantity", 0).lt("expiry_date", today) : null,
+    seesStock ? supabase.from("lots").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).gt("quantity", 0).gte("expiry_date", today).lte("expiry_date", soon) : null,
     seesReceivables ? supabase.from("sales").select("id", { count: "exact", head: true }).eq("status", "completada").in("credit_status", ["pendiente", "parcial"]).lt("due_date", today) : null,
   ]);
 
@@ -51,6 +56,12 @@ export async function GET() {
   }
   if (overdue?.count) {
     items.push({ id: "ap", tone: "red", title: plural(overdue.count, "factura de proveedor vencida", "facturas de proveedor vencidas"), detail: "Pagos atrasados a proveedores", href: "/cuentas-por-pagar?estado=vencidas" });
+  }
+  if (expiredLots?.count) {
+    items.push({ id: "lots-expired", tone: "red", title: plural(expiredLots.count, "lote vencido con stock", "lotes vencidos con stock"), detail: "No se pueden vender: retíralos con un ajuste", href: "/inventario/lotes?estado=vencidos" });
+  }
+  if (expiringLots?.count) {
+    items.push({ id: "lots-soon", tone: "amber", title: plural(expiringLots.count, "lote vence en 30 días", "lotes vencen en 30 días"), detail: "Prioriza su venta", href: "/inventario/lotes" });
   }
   if (lateCustomers?.count) {
     items.push({ id: "ar", tone: "red", title: plural(lateCustomers.count, "venta al crédito vencida", "ventas al crédito vencidas"), detail: "Clientes con pagos atrasados", href: "/cuentas-por-cobrar?estado=vencidas" });

@@ -10,6 +10,7 @@ export default function AccountingLayout({ children }: LayoutProps<"/contabilida
           { href: "/contabilidad", label: "Libro diario" },
           { href: "/contabilidad/mayor", label: "Libro mayor" },
           { href: "/contabilidad/balances", label: "Balances" },
+          { href: "/contabilidad/centros", label: "Centros de costo" },
           { href: "/contabilidad/plan", label: "Plan de cuentas" },
           { href: "/contabilidad/periodos", label: "Periodos" },
         ]}

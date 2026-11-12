@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
-import { amount, firstIssue, quantity, uuid } from "@/lib/validation";
+import { amount, firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
 
 const purchaseSchema = z.object({
   supplier_id: z.uuid("Selecciona un proveedor"),
@@ -65,10 +65,16 @@ export async function decideRequisition(id: string, approve: boolean, note: stri
 }
 
 /** Recepción: ingresa el stock y recalcula el costo promedio ponderado. */
-export async function receivePurchase(purchaseId: string): Promise<ActionResult> {
+const lotsSchema = z
+  .array(z.object({ product_id: uuid, lot_number: z.string().trim().min(1, "Indica el número de lote").max(40), expiry_date: isoDate }))
+  .max(200);
+
+export async function receivePurchase(purchaseId: string, lots: z.input<typeof lotsSchema> = []): Promise<ActionResult> {
   if (!uuid.safeParse(purchaseId).success) return fail("Orden inválida");
+  const parsedLots = lotsSchema.safeParse(lots);
+  if (!parsedLots.success) return fail(firstIssue(parsedLots.error));
   const { supabase } = await getContext();
-  const { error } = await supabase.rpc("receive_purchase", { p_purchase: purchaseId });
+  const { error } = await supabase.rpc("receive_purchase", { p_purchase: purchaseId, p_lots: parsedLots.data });
   if (error) return fail(friendlyError(error));
   revalidatePath("/", "layout");
   return success(undefined);

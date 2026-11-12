@@ -63,6 +63,8 @@ export type InventoryRow = {
   stock_value: number;
   low_stock: boolean;
   image_url?: string | null;
+  /** Controla lotes y fechas de vencimiento (salida FEFO) */
+  track_lots?: boolean;
 };
 
 export type Customer = {
@@ -143,6 +145,7 @@ export type Expense = {
   amount: number;
   payment_method: string;
   expense_date: string;
+  cost_center_id: string | null;
 };
 
 export type Employee = {

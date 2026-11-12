@@ -11,11 +11,21 @@ import { cn, round2 } from "@/lib/utils";
 import { postManualEntry, reverseManualEntry, setPeriodStatus } from "@/modules/contabilidad/actions";
 import type { Account } from "@/modules/contabilidad/shared";
 
-type Line = { account: string; note: string; debit: string; credit: string };
-const empty = (): Line => ({ account: "", note: "", debit: "", credit: "" });
+type Line = { account: string; note: string; debit: string; credit: string; cost_center: string };
+const empty = (): Line => ({ account: "", note: "", debit: "", credit: "", cost_center: "" });
 
 /** Asiento manual con líneas dinámicas; no se registra si no cuadra. */
-export function ManualEntryForm({ accounts, branches, today }: { accounts: Account[]; branches: { value: string; label: string }[]; today: string }) {
+export function ManualEntryForm({
+  accounts,
+  branches,
+  costCenters,
+  today,
+}: {
+  accounts: Account[];
+  branches: { value: string; label: string }[];
+  costCenters: { value: string; label: string }[];
+  today: string;
+}) {
   const { money } = useApp();
   const router = useRouter();
   const [date, setDate] = useState(today);
@@ -39,7 +49,7 @@ export function ManualEntryForm({ accounts, branches, today }: { accounts: Accou
         entry_date: date,
         description,
         branch_id: branch || null,
-        lines: used.map((l) => ({ account: l.account, note: l.note, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0 })),
+        lines: used.map((l) => ({ account: l.account, note: l.note, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0, cost_center: l.cost_center || null })),
       });
       if (!res.ok) return setError(res.error);
       toast.success("Asiento registrado");
@@ -73,6 +83,7 @@ export function ManualEntryForm({ accounts, branches, today }: { accounts: Accou
           <tr>
             <Th>Cuenta</Th>
             <Th>Detalle</Th>
+            <Th className="w-44">Centro de costo</Th>
             <Th className="w-36 text-right">Debe</Th>
             <Th className="w-36 text-right">Haber</Th>
             <Th className="w-px" />
@@ -93,6 +104,17 @@ export function ManualEntryForm({ accounts, branches, today }: { accounts: Accou
               </Td>
               <Td>
                 <Input value={l.note} onChange={(e) => update(i, { note: e.target.value })} maxLength={120} aria-label={`Detalle de la línea ${i + 1}`} />
+              </Td>
+              <Td>
+                {/* El centro de costo solo aplica a cuentas de gasto (clase 6) */}
+                <Select value={l.cost_center} disabled={!l.account.startsWith("6")} onChange={(e) => update(i, { cost_center: e.target.value })} aria-label={`Centro de costo de la línea ${i + 1}`}>
+                  <option value="">—</option>
+                  {costCenters.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </Select>
               </Td>
               <Td>
                 <Input
@@ -134,6 +156,7 @@ export function ManualEntryForm({ accounts, branches, today }: { accounts: Accou
                 Agregar línea
               </Button>
             </Td>
+            <Td />
             <Td className="text-right text-xs font-medium text-slate-500">Totales</Td>
             <Td className="text-right">{money(debit)}</Td>
             <Td className="text-right">{money(credit)}</Td>

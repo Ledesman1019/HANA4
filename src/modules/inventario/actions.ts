@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
-import { firstIssue, quantity, uuid } from "@/lib/validation";
+import { firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
 
 /** Ajuste por conteo físico: fija la cantidad real y deja rastro en el kardex. */
 export async function adjustStock(productId: string, newQuantity: number, note: string): Promise<ActionResult> {
@@ -19,6 +19,18 @@ export async function adjustStock(productId: string, newQuantity: number, note: 
     p_new_quantity: parsed.data.quantity,
     p_note: parsed.data.note,
   });
+  if (error) return fail(friendlyError(error));
+  revalidatePath("/", "layout");
+  return success(undefined);
+}
+
+export async function updateLot(lotId: string, lotNumber: string, expiry: string): Promise<ActionResult> {
+  const parsed = z
+    .object({ id: uuid, lot: z.string().trim().min(1, "Indica el número de lote").max(40), expiry: z.union([z.literal(""), isoDate]) })
+    .safeParse({ id: lotId, lot: lotNumber, expiry });
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const { supabase } = await getContext();
+  const { error } = await supabase.rpc("update_lot", { p_lot: parsed.data.id, p_lot_number: parsed.data.lot, p_expiry: parsed.data.expiry || null });
   if (error) return fail(friendlyError(error));
   revalidatePath("/", "layout");
   return success(undefined);

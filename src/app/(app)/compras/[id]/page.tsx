@@ -40,7 +40,7 @@ type Detail = {
   branch: { name: string } | null;
   creator: { full_name: string } | null;
   requisition: { id: string; number: string; decided_at: string | null } | null;
-  items: { id: string; quantity: number; unit_cost: number; total: number; product: { name: string; sku: string; unit: string } | null }[];
+  items: { id: string; product_id: string; quantity: number; unit_cost: number; total: number; product: { name: string; sku: string; unit: string; track_lots: boolean } | null }[];
   invoices: Invoice[];
 };
 
@@ -54,7 +54,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/compras
   const { data } = await supabase
     .from("purchases")
     .select(
-      "*, supplier:suppliers(name, tax_id, phone), branch:branches(name), creator:profiles(full_name), requisition:purchase_requisitions!purchases_requisition_id_fkey(id, number, decided_at), items:purchase_items(id, quantity, unit_cost, total, product:products(name, sku, unit)), invoices:supplier_invoices(id, number, status, issue_date, due_date, total, paid, difference, note, payments:supplier_payments(id, amount, method, paid_at, reference))",
+      "*, supplier:suppliers(name, tax_id, phone), branch:branches(name), creator:profiles(full_name), requisition:purchase_requisitions!purchases_requisition_id_fkey(id, number, decided_at), items:purchase_items(id, product_id, quantity, unit_cost, total, lot_number, expiry_date, product:products(name, sku, unit, track_lots)), invoices:supplier_invoices(id, number, status, issue_date, due_date, total, paid, difference, note, payments:supplier_payments(id, amount, method, paid_at, reference))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -97,7 +97,14 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/compras
         </Link>
         {po.status === "ordenada" && (
           // La recepción es del almacén; anular, de quien tiene "Eliminar" en Compras
-          <PurchaseActions purchaseId={po.id} number={po.number} canReceive={can("inventario", "edit")} canCancel={can("compras", "delete")} />
+          <PurchaseActions
+            purchaseId={po.id}
+            number={po.number}
+            canReceive={can("inventario", "edit")}
+            canCancel={can("compras", "delete")}
+            trackedItems={po.items.filter((i) => i.product?.track_lots).map((i) => ({ product_id: i.product_id, name: i.product?.name ?? "", quantity: Number(i.quantity) }))}
+            today={today}
+          />
         )}
         {received && !invoice && can("cuentas_pagar", "create") && <RegisterInvoiceButton purchaseId={po.id} orderTotal={Number(po.total)} today={today} />}
       </PageHeader>

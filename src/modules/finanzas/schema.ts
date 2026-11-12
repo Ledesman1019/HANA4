@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { EntityDef } from "@/lib/crud/types";
-import { isoDate, money, required } from "@/lib/validation";
+import { isoDate, money, nullableUuid, required } from "@/lib/validation";
 
 export const expenses: EntityDef = {
   table: "expenses",
@@ -13,5 +13,6 @@ export const expenses: EntityDef = {
     amount: money("El monto").gt(0, "El monto debe ser mayor a cero"),
     payment_method: z.enum(["efectivo", "tarjeta", "transferencia", "yape", "plin"]),
     expense_date: isoDate,
+    cost_center_id: nullableUuid,
   }),
 };

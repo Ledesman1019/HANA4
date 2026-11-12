@@ -20,6 +20,7 @@ const UPDATES: [version: number, file: string, what: string][] = [
   [5, "0005_ciclo_compras_cuentas_por_pagar.sql", "solicitudes de pedido, aprobaciones, facturas de proveedor y pagos"],
   [6, "0006_cotizaciones_credito_cuentas_por_cobrar.sql", "cotizaciones, ventas al crédito y cobranza"],
   [7, "0007_contabilidad.sql", "contabilidad: plan de cuentas, asientos automáticos y balances"],
+  [8, "0008_lotes_centros_costo.sql", "lotes y vencimientos, centros de costo"],
 ];
 
 export default function SetupPage() {

@@ -27,6 +27,7 @@ export const products: EntityDef = {
     cost: money("El costo"),
     price: money("El precio"),
     min_stock: money("El stock mínimo"),
+    track_lots: z.preprocess((v) => v === true || v === "true", z.boolean()),
     // Solo se aceptan imágenes de nuestro propio almacenamiento
     image_url: z.preprocess(
       emptyToNull,

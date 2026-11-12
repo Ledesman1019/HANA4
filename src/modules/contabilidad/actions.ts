@@ -17,6 +17,7 @@ const manualSchema = z.object({
         debit: amount,
         credit: amount,
         note: z.string().trim().max(120),
+        cost_center: uuid.nullable(),
       }),
     )
     .min(2, "Un asiento necesita al menos dos líneas")

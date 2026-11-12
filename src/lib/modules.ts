@@ -181,6 +181,8 @@ export const NAV: NavItem[] = [
 
 /** Pantallas internas con código propio (no aparecen en el menú, sí en el buscador). */
 export const SHORTCUTS: NavItem[] = [
+  { href: "/inventario/lotes", label: "Lotes y vencimientos", desc: "Qué vence y cuándo", icon: "inventory", code: "MB5M", group: "Logística", module: "inventario", needs: "view" },
+  { href: "/contabilidad/centros", label: "Centros de costo", desc: "Resultado por sucursal y gasto por área", icon: "ledger", code: "KSB1", group: "Gestión", module: "contabilidad", needs: "view" },
   { href: "/contabilidad/mayor", label: "Libro mayor", desc: "Movimientos y saldo de una cuenta", icon: "ledger", code: "FAGLL03", group: "Gestión", module: "contabilidad", needs: "view" },
   { href: "/contabilidad/balances", label: "Balances", desc: "Comprobación, resultados y situación", icon: "ledger", code: "F.08", group: "Gestión", module: "contabilidad", needs: "view" },
   { href: "/contabilidad/plan", label: "Plan de cuentas", desc: "Cuentas contables (PCGE)", icon: "ledger", code: "FS00", group: "Gestión", module: "contabilidad", needs: "view" },
