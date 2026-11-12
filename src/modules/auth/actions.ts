@@ -35,6 +35,12 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   redirect("/");
 }
 
+/** Cierra la sesión sin redirigir (para «Salir de la aplicación»). */
+export async function signOut() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+}
+
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();

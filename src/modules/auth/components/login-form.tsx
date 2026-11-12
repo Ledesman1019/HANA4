@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Database, KeyRound, Loader2, UserRound, X } from "lucide-react";
+import { Building2, Check, KeyRound, Loader2, UserRound, X } from "lucide-react";
 import { login } from "@/modules/auth/actions";
+import { exitApp } from "@/lib/exit";
 
 const label = "mb-1 block text-[12px] font-medium text-slate-700";
 const box =
@@ -13,7 +14,7 @@ const classicButton =
   "flex h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[3px] border border-slate-400/80 bg-gradient-to-b from-white to-slate-200 text-[13px] font-medium text-slate-800 shadow-sm transition hover:from-slate-50 hover:to-slate-300 focus-visible:outline-2 focus-visible:outline-brand-500 active:translate-y-px disabled:cursor-wait disabled:opacity-70";
 
 /** Ventana «Información de usuario» al estilo de los ERP de escritorio. */
-export function LoginForm({ database }: { database: string }) {
+export function LoginForm({ central }: { central: string }) {
   const [state, action, pending] = useActionState(login, undefined);
   const [help, setHelp] = useState(false);
 
@@ -40,14 +41,10 @@ export function LoginForm({ database }: { database: string }) {
       </div>
 
       <div>
-        <label htmlFor="login-db" className={label}>
-          Base de Datos:
-        </label>
-        <div className={box}>
-          <Database className={icon} />
-          <select id="login-db" disabled className="h-full min-w-0 flex-1 cursor-default appearance-none bg-transparent px-2 font-mono text-[11.5px] text-slate-700 opacity-100">
-            <option>{database}</option>
-          </select>
+        <span className={label}>Central:</span>
+        <div className={`${box} bg-slate-50`}>
+          <Building2 className={icon} />
+          <span className="px-2 text-[13px] font-semibold text-slate-700">{central}</span>
         </div>
       </div>
 
@@ -62,7 +59,7 @@ export function LoginForm({ database }: { database: string }) {
           {pending ? <Loader2 className="h-4 w-4 animate-spin text-brand-600" /> : <Check className="h-4 w-4 text-emerald-600" strokeWidth={3} />}
           {pending ? "Conectando…" : "Conectar"}
         </button>
-        <button type="reset" className={classicButton}>
+        <button type="button" onClick={exitApp} className={classicButton}>
           <X className="h-4 w-4 text-red-600" strokeWidth={3} />
           Salir
         </button>

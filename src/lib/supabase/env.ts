@@ -6,11 +6,8 @@ export const SUPABASE_KEY =
 
 export const hasSupabaseEnv = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
-/** Nombre de la base de datos tal como se muestra en el login y en «Acerca de» (servidor\\HANA4). */
-export function databaseLabel() {
-  try {
-    return `${new URL(SUPABASE_URL).host.split(".")[0]}\\HANA4`;
-  } catch {
-    return "HANA4";
-  }
-}
+/**
+ * Nombre de la central que se muestra en el login y en «Acerca de».
+ * Nunca se muestra el servidor ni el nombre técnico de la base de datos.
+ */
+export const CENTRAL_NAME = process.env.NEXT_PUBLIC_CENTRAL_NAME?.trim() || "HANA4 Central";

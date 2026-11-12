@@ -5,7 +5,7 @@ import { Building2, KeyRound, Moon, Sun, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { changePassword, setBranch } from "@/modules/auth/actions";
 import { playSound, setSoundEnabled, soundEnabled, subscribeSound } from "@/lib/sound";
-import { databaseLabel } from "@/lib/supabase/env";
+import { CENTRAL_NAME } from "@/lib/supabase/env";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-provider";
 import { Dialog, DialogFooter } from "@/components/dialog";
@@ -137,7 +137,7 @@ export function AboutDialog({ open, onClose, menu }: { open: boolean; onClose: (
     ["Empresa", settings.name + (settings.tax_id ? ` · RUC ${settings.tax_id}` : "")],
     ["Usuario", `${profile.full_name} (${roleName})`],
     ["Sucursal", `${branch.code} · ${branch.name}`],
-    ["Base de datos", databaseLabel()],
+    ["Central", CENTRAL_NAME],
     ["Versión", "ERP HANA4 1.0"],
   ];
   return (

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BadgePercent, Boxes, ChartNoAxesCombined, CreditCard, LayoutGrid, Settings, ShoppingBag, Store, UsersRound, type LucideIcon } from "lucide-react";
 import { BrandMark } from "@/components/brand";
-import { databaseLabel } from "@/lib/supabase/env";
+import { CENTRAL_NAME } from "@/lib/supabase/env";
 import { LoginForm } from "@/modules/auth/components/login-form";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
@@ -31,7 +31,7 @@ export default function LoginPage() {
           Información de Usuario
         </h1>
         <div className="p-4">
-          <LoginForm database={databaseLabel()} />
+          <LoginForm central={CENTRAL_NAME} />
         </div>
       </section>
 
