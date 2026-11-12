@@ -22,6 +22,7 @@ const UPDATES: [version: number, file: string, what: string][] = [
   [7, "0007_contabilidad.sql", "contabilidad: plan de cuentas, asientos automáticos y balances"],
   [8, "0008_lotes_centros_costo.sql", "lotes y vencimientos, centros de costo"],
   [9, "0009_roles_planilla_compras.sql", "roles por área, planilla, compras por empaque"],
+  [10, "0010_rls_tools.sql", "RLS Tools: ubicaciones de almacén e inventarios desde el celular"],
 ];
 
 export default function SetupPage() {

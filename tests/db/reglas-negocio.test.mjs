@@ -632,6 +632,81 @@ await fails("vendedor no asigna crédito", "select set_customer_credit($1, 99999
 await sudo();
 ok("el cambio de línea queda en la auditoría", (await q("select count(*) c from audit_log where action='cobro.credito' and summary like '%a 1,500.00%'"))[0].c > 0);
 
+// --- RLS Tools (0010): ubicaciones, inventario físico y movimientos desde el celular ---
+await sudo();
+await db.exec(readFileSync(`${root}/supabase/migrations/0010_rls_tools.sql`, "utf8"));
+ok("schema_version = 10 (RLS Tools)", (await q("select schema_version() v"))[0].v === 10);
+const uid = () => crypto.randomUUID();
+const almR = await mk("almacen.rls@erp.test");
+await grant(almR, "almacenero");
+const rp = (await q("select id, sku, barcode, cost from products where barcode is not null and active order by sku limit 2"));
+const stockOf = async (pid) => Number((await q("select quantity from stock where product_id=$1 and branch_id=$2", [pid, branch]))[0]?.quantity ?? 0);
+
+await as(almR);
+const locA = (await q("insert into warehouse_locations (branch_id, code, zone) values ($1,'A-01-01','ABARROTES') returning id", [branch]))[0].id;
+ok("almacén crea ubicaciones", Boolean(locA));
+await fails("ubicación con código inválido", "insert into warehouse_locations (branch_id, code) values ($1,'a 1')", [branch], "check");
+
+// Abrir y contar
+const openOp = uid();
+const open1 = (await q("select rls_open_count($1,$2,'Conteo de abarrotes','abarrotes',true,false) r", [openOp, branch]))[0].r;
+ok("abre una sesión de inventario numerada", open1.number?.startsWith("IF001-"), open1.number);
+ok("reabrir con el mismo id no crea otra (idempotente)", (await q("select rls_open_count($1,$2,'Conteo de abarrotes','',true,false) r", [openOp, branch]))[0].r.session_id === open1.session_id);
+const sess = open1.session_id;
+const c1 = uid();
+await q("select rls_count($1,$2,$3,1,$4,'sumar')", [c1, sess, rp[0].barcode, locA]);
+await q("select rls_count($1,$2,$3,1,$4,'sumar')", [uid(), sess, rp[0].barcode, locA]);
+const again = (await q("select rls_count($1,$2,$3,1,$4,'sumar') r", [c1, sess, rp[0].barcode, locA]))[0].r;
+ok("escaneo reenviado tras corte de señal no se cuenta dos veces", again.repetida === true && Number((await q("select counted from count_lines where session_id=$1 and product_id=(select id from products where barcode=$2)", [sess, rp[0].barcode]))[0].counted) === 2);
+const bySku = (await q("select rls_count($1,$2,$3,5,null,'fijar') r", [uid(), sess, rp[1].sku.toLowerCase()]))[0].r;
+ok("cuenta también por SKU y fija la cantidad", bySku.status === "ok" && Number(bySku.counted) === 5);
+const unk = (await q("select rls_count($1,$2,'0000000099999',3,null,'sumar') r", [uid(), sess]))[0].r;
+ok("código no registrado se reporta sin perderse", unk.status === "desconocido" && Number((await q("select quantity from count_unknown_codes where session_id=$1", [sess]))[0].quantity) === 3);
+await fails("cantidad inválida", "select rls_count($1,$2,$3,-1,null,'sumar')", [uid(), sess, rp[0].barcode], "Cantidad inválida");
+
+// Cerrar: foto del stock del ERP
+const before0 = await stockOf(rp[0].id);
+const before1 = await stockOf(rp[1].id);
+await q("select rls_close_count($1,$2)", [uid(), sess]);
+const snap = await q("select product_id, sum(counted) c, max(system_qty) s from count_lines where session_id=$1 group by product_id", [sess]);
+ok("al cerrar guarda el stock del ERP para comparar", snap.every((l) => Number(l.s) === (l.product_id === rp[0].id ? before0 : before1)));
+await fails("inventario cerrado no admite conteos", "select rls_count($1,$2,$3,1,null,'sumar')", [uid(), sess, rp[0].barcode], "ya está cerrada");
+
+// Una venta entre el cierre y la aplicación no se pierde: se aplica solo la diferencia contada
+await sudo();
+await db.query("select _move_stock($1,$2,-1,'ajuste',0,'prueba',null,'Venta simulada entre cierre y aplicación')", [rp[1].id, branch]);
+await as(comp);
+await fails("quien solo consulta inventario no aplica", "select rls_apply_count($1,$2,'')", [uid(), sess], "Solo quien puede ajustar");
+await as(almR);
+const applied = (await q("select rls_apply_count($1,$2,'Conteo mensual') r", [uid(), sess]))[0].r;
+ok("aplica el inventario al ERP", applied.adjustments === 2, JSON.stringify(applied));
+ok("aplica la diferencia (contado − stock al cerrar) sin pisar movimientos posteriores",
+  (await stockOf(rp[0].id)) === 2 && (await stockOf(rp[1].id)) === before1 - 1 + (5 - before1));
+ok("los ajustes quedan en el kardex referidos al inventario", Number((await q("select count(*) c from stock_movements where reference_type='conteo' and reference_id=$1", [sess]))[0].c) === 2);
+await fails("no se aplica dos veces", "select rls_apply_count($1,$2,'')", [uid(), sess], "Solo se aplica un inventario cerrado");
+
+// Movimientos
+await fails("salida exige motivo", "select rls_move($1,'salida',$2,$3,1)", [uid(), rp[0].barcode, branch], "Indica el motivo");
+const stockIn = await stockOf(rp[0].id);
+const mvOp = uid();
+await q("select rls_move($1,'entrada',$2,$3,10,null,null,'Devolución de cliente')", [mvOp, rp[0].barcode, branch]);
+await q("select rls_move($1,'entrada',$2,$3,10,null,null,'Devolución de cliente')", [mvOp, rp[0].barcode, branch]);
+ok("entrada desde el celular (reenviada no se duplica)", (await stockOf(rp[0].id)) === stockIn + 10);
+await q("select rls_move($1,'salida',$2,$3,4,null,null,'Merma por rotura')", [uid(), rp[0].barcode, branch]);
+ok("salida desde el celular", (await stockOf(rp[0].id)) === stockIn + 6);
+await fails("salida mayor al stock", "select rls_move($1,'salida',$2,$3,999999,null,null,'Merma')", [uid(), rp[0].barcode, branch], "Stock insuficiente");
+await q("select rls_move($1,'ubicacion',$2,$3,null,null,$4,'')", [uid(), rp[0].barcode, branch, locA]);
+ok("cambia la ubicación del producto", (await q("select location_id from product_locations where product_id=$1 and branch_id=$2", [rp[0].id, branch]))[0]?.location_id === locA);
+await fails("código inexistente en movimiento", "select rls_move($1,'entrada','NOEXISTE',$2,1,null,null,'Prueba')", [uid(), branch], "no corresponde");
+ok("bitácora de operaciones móviles del usuario", Number((await q("select count(*) c from mobile_operations where user_id=$1", [almR]))[0].c) >= 8);
+
+await as(cajero);
+await fails("cajero no abre inventarios", "select rls_open_count($1,$2,'Intento',  '',true,false)", [uid(), branch], "no puede abrir");
+await fails("cajero no mueve stock", "select rls_move($1,'entrada',$2,$3,1,null,null,'Intento')", [uid(), rp[0].barcode, branch], "no puede registrar movimientos");
+ok("cajero no ve sesiones de inventario", (await q("select * from count_sessions")).length === 0);
+await fails("nadie escribe conteos directo", "insert into count_lines (session_id, product_id, counted) values ($1,$2,1)", [sess, rp[0].id], "permission denied");
+await sudo();
+
 ok("final: todos los asientos cuadran", (await q("select entry_id from journal_lines group by entry_id having sum(debit) <> sum(credit)")).length === 0);
 const drift2 = await q(`select count(*) c from stock s where quantity <> (select sum(quantity) from stock_movements m where m.product_id=s.product_id and m.branch_id=s.branch_id)`);
 ok("final: stock = suma de kardex", Number(drift2[0].c) === 0);

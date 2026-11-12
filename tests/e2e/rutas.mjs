@@ -99,6 +99,8 @@ try {
   const inv = await page(a, "/inventario", ["Listado de productos", "Productos activos", "Arroz Extra 5 kg"]);
   report(!inv.includes(">Kardex<") && !inv.includes(">Lotes y vencimientos<"), "cada pantalla muestra solo lo suyo (sin pestañas de otras pantallas)");
   await page(a, "/inventario/fisico", ["Inventario físico", "Referencia del conteo"]);
+  await page(a, "/inventario/ubicaciones", ["Ubicaciones de almacén", "Nueva <!-- -->ubicación"]);
+  await page(a, "/inventario/conteos", ["Inventarios desde RLS Tools"]);
   await page(a, "/inventario/movimientos?tipo=ajuste", ["Ajustes de inventario (histórico)"], "kardex filtrado: ajustes");
   await page(a, "/inventario/movimientos", ["Saldo"]);
   await page(a, "/inventario/categorias", ["Abarrotes"]);

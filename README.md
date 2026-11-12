@@ -2,6 +2,15 @@
 
 Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, inventario, compras, finanzas y personal** en una sola aplicación, con roles configurables y permisos por módulo.
 
+## RLS Tools (almacén en el celular)
+
+**RLS Tools** es la app móvil (PWA) complementaria, en su propio repositorio (`../rls-tools`). Sirve para inventario con pistola, inventario físico por zona, consulta rápida, movimientos de almacén, reportes de diferencias y sincronización. Usa **esta misma base de datos** (migración `0010_rls_tools.sql`): mismos usuarios, roles y stock, y funciona sin señal sin duplicar operaciones.
+
+Desde el ERP:
+- **MM → Inventario → Ubicaciones de almacén:** pasillos, estantes y zonas que el celular escanea.
+- **MM → Inventario → Inventarios desde RLS Tools:** lo contado en el celular, con sus faltantes, sobrantes y diferencia valorizada; desde ahí se aplica al stock.
+- La campana avisa cuando hay inventarios del celular por aplicar.
+
 ## Navegación al estilo ERP clásico
 
 - **Login:** ventana «Información de usuario» (usuario, clave y base de datos, con los botones Conectar y Salir) sobre el escritorio azul de la marca.

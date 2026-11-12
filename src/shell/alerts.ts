@@ -21,7 +21,7 @@ export async function computeAlerts(ctx: Ctx): Promise<AlertItem[]> {
   const lots = () => supabase.from("lots").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).gt("quantity", 0);
   const count = async (query: PromiseLike<{ count: number | null }> | null) => (query ? ((await query).count ?? 0) : 0);
 
-  const [out, low, toReceive, toApprove, latePayables, lateReceivables, expiredLots, expiringLots, unsent, session] = await Promise.all([
+  const [out, low, toReceive, toApprove, latePayables, lateReceivables, expiredLots, expiringLots, unsent, session, toApply] = await Promise.all([
     count(seesStock ? stock().lte("quantity", 0) : null),
     count(seesStock ? stock().eq("low_stock", true).gt("quantity", 0) : null),
     count(can("compras", "view") ? supabase.from("purchases").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "ordenada") : null),
@@ -36,6 +36,8 @@ export async function computeAlerts(ctx: Ctx): Promise<AlertItem[]> {
     count(seesStock ? lots().gte("expiry_date", today).lte("expiry_date", soon) : null),
     count(can("facturacion", "view") ? supabase.from("e_documents").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).neq("status", "aceptado") : null),
     supabase.from("cash_sessions").select("id, opened_at").eq("opened_by", userId).eq("status", "abierta").maybeSingle(),
+    // Inventarios contados en el celular (RLS Tools) esperando que alguien los aplique
+    count(can("inventario", "edit") ? supabase.from("count_sessions").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "cerrada") : null),
   ]);
 
   const items: AlertItem[] = [];
@@ -54,6 +56,9 @@ export async function computeAlerts(ctx: Ctx): Promise<AlertItem[]> {
   if (expiringLots) items.push({ id: "lots-soon", tone: "amber", title: plural(expiringLots, "lote vence en 30 días", "lotes vencen en 30 días"), detail: "Prioriza su venta", href: "/inventario/lotes" });
   if (lateReceivables) {
     items.push({ id: "ar", tone: "red", title: plural(lateReceivables, "venta al crédito vencida", "ventas al crédito vencidas"), detail: "Clientes con pagos atrasados", href: "/cuentas-por-cobrar?estado=vencidas" });
+  }
+  if (toApply) {
+    items.push({ id: "rls", tone: "blue", title: plural(toApply, "inventario del celular por aplicar", "inventarios del celular por aplicar"), detail: "Contados con RLS Tools: revisa diferencias y aplícalos", href: "/inventario/conteos?estado=cerrada" });
   }
   if (unsent) items.push({ id: "edoc", tone: "red", title: plural(unsent, "comprobante sin aceptar", "comprobantes sin aceptar"), detail: "Pendientes o rechazados: revísalos y reenvía", href: "/facturacion" });
   if (session.data) {

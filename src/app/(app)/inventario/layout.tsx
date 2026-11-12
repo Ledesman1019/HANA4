@@ -20,6 +20,8 @@ const SCREENS = {
   },
   "/inventario/lotes": { title: "Lotes y vencimientos", description: "Lotes con stock y su fecha de vencimiento; la venta sale primero lo que vence antes (FEFO)." },
   "/inventario/categorias": { title: "Categorías", description: "Clasificación de los productos." },
+  "/inventario/ubicaciones": { title: "Ubicaciones de almacén", description: "Pasillos, estantes y zonas de cada sucursal. RLS Tools las usa para contar y ubicar productos." },
+  "/inventario/conteos": { title: "Inventarios desde RLS Tools", description: "Inventarios físicos contados con el celular, con sus faltantes, sobrantes y diferencia valorizada." },
 };
 
 export default function InventoryLayout({ children }: LayoutProps<"/inventario">) {

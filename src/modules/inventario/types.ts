@@ -42,3 +42,6 @@ export const MOVEMENT_LABELS: Record<string, string> = {
   transferencia_entrada: "Transferencia (entrada)",
   transferencia_salida: "Transferencia (salida)",
 };
+
+/** Ubicación del almacén (la usa RLS Tools para contar por zona y ubicar productos). */
+export type WarehouseLocation = { id: string; branch_id: string; code: string; zone: string; description: string; active: boolean };

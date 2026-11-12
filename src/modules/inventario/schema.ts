@@ -47,3 +47,22 @@ export const products: EntityDef = {
     ),
   }),
 };
+
+/** Ubicaciones del almacén (pasillo-estante-nivel). RLS Tools las descarga y escanea. */
+export const locations: EntityDef = {
+  table: "warehouse_locations",
+  module: "inventario",
+  softDelete: true,
+  schema: z.object({
+    branch_id: z.uuid("Elige la sucursal"),
+    code: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z0-9][A-Z0-9-]{0,19}$/, "Código inválido: letras, números y guiones (ej. A-01-03)"),
+    zone: text(40)
+      .transform((v) => v.toUpperCase())
+      .default(""),
+    description: text(120).default(""),
+  }),
+};

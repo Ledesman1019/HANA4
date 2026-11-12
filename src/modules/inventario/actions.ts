@@ -6,7 +6,7 @@ import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
 import { crudSave, crudSetActive } from "@/lib/crud/engine";
 import { firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
-import { categories, products } from "./schema";
+import { categories, locations, products } from "./schema";
 
 export async function saveProduct(id: string | null, values: Record<string, unknown>) {
   return crudSave(products, id, values);
@@ -22,6 +22,27 @@ export async function saveCategory(id: string | null, values: Record<string, unk
 
 export async function setCategoryActive(id: string, active: boolean) {
   return crudSetActive(categories, id, active);
+}
+
+export async function saveLocation(id: string | null, values: Record<string, unknown>) {
+  return crudSave(locations, id, values);
+}
+
+export async function setLocationActive(id: string, active: boolean) {
+  return crudSetActive(locations, id, active);
+}
+
+/** Aplica al stock un inventario contado con RLS Tools (diferencia contada vs. stock al cerrar). */
+export async function applyMobileCount(sessionId: string, note: string): Promise<ActionResult<{ adjustments: number; value: number }>> {
+  const parsed = z.object({ id: uuid, note: z.string().trim().max(120) }).safeParse({ id: sessionId, note });
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const { supabase, can } = await getContext();
+  if (!can("inventario", "edit")) return fail("Solo quien puede ajustar stock aplica inventarios");
+  const { data, error } = await supabase.rpc("rls_apply_count", { p_op: crypto.randomUUID(), p_session: parsed.data.id, p_note: parsed.data.note });
+  if (error) return fail(friendlyError(error));
+  revalidatePath("/", "layout");
+  const r = data as { adjustments: number; value: number };
+  return success({ adjustments: Number(r.adjustments), value: Number(r.value) });
 }
 
 /** Ajuste por conteo físico: fija la cantidad real y deja rastro en el kardex. */
