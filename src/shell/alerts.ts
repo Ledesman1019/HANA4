@@ -21,7 +21,7 @@ export async function computeAlerts(ctx: Ctx): Promise<AlertItem[]> {
   const lots = () => supabase.from("lots").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).gt("quantity", 0);
   const count = async (query: PromiseLike<{ count: number | null }> | null) => (query ? ((await query).count ?? 0) : 0);
 
-  const [out, low, toReceive, toApprove, latePayables, lateReceivables, expiredLots, expiringLots, unsent, session, toApply] = await Promise.all([
+  const [out, low, toReceive, toApprove, latePayables, lateReceivables, expiredLots, expiringLots, unsent, session, toApply, inTransit] = await Promise.all([
     count(seesStock ? stock().lte("quantity", 0) : null),
     count(seesStock ? stock().eq("low_stock", true).gt("quantity", 0) : null),
     count(can("compras", "view") ? supabase.from("purchases").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "ordenada") : null),
@@ -38,6 +38,8 @@ export async function computeAlerts(ctx: Ctx): Promise<AlertItem[]> {
     supabase.from("cash_sessions").select("id, opened_at").eq("opened_by", userId).eq("status", "abierta").maybeSingle(),
     // Inventarios contados en el celular (RLS Tools) esperando que alguien los aplique
     count(can("inventario", "edit") ? supabase.from("count_sessions").select("id", { count: "exact", head: true }).eq("branch_id", branch.id).eq("status", "cerrada") : null),
+    // Transferencias que vienen en camino a esta tienda (si falta la migración 0011 cuenta 0)
+    count(can("inventario", "edit") ? supabase.from("transfer_orders").select("id", { count: "exact", head: true }).eq("to_branch", branch.id).eq("status", "en_transito") : null),
   ]);
 
   const items: AlertItem[] = [];
@@ -59,6 +61,9 @@ export async function computeAlerts(ctx: Ctx): Promise<AlertItem[]> {
   }
   if (toApply) {
     items.push({ id: "rls", tone: "blue", title: plural(toApply, "inventario del celular por aplicar", "inventarios del celular por aplicar"), detail: "Contados con RLS Tools: revisa diferencias y aplícalos", href: "/inventario/conteos?estado=cerrada" });
+  }
+  if (inTransit) {
+    items.push({ id: "transit", tone: "blue", title: plural(inTransit, "transferencia por recibir", "transferencias por recibir"), detail: "En tránsito: recíbelas con RLS Tools al llegar", href: "/inventario/transferencias?dir=recibidas&estado=en_transito" });
   }
   if (unsent) items.push({ id: "edoc", tone: "red", title: plural(unsent, "comprobante sin aceptar", "comprobantes sin aceptar"), detail: "Pendientes o rechazados: revísalos y reenvía", href: "/facturacion" });
   if (session.data) {

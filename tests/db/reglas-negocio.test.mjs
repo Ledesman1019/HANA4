@@ -707,6 +707,46 @@ ok("cajero no ve sesiones de inventario", (await q("select * from count_sessions
 await fails("nadie escribe conteos directo", "insert into count_lines (session_id, product_id, counted) values ($1,$2,1)", [sess, rp[0].id], "permission denied");
 await sudo();
 
+// --- 0011: transferencias en tránsito y retornos a proveedor ---
+await sudo();
+await db.exec(readFileSync(`${root}/supabase/migrations/0011_transferencias_retornos.sql`, "utf8"));
+ok("schema_version = 11", (await q("select schema_version() v"))[0].v === 11);
+const tb2 = (await q("select id from branches where code='002'"))[0].id;
+const tp = (await q("select id, barcode, sku, cost from products where barcode is not null and active and not track_lots order by sku desc limit 1"))[0];
+const stockAt = async (b) => Number((await q("select quantity from stock where product_id=$1 and branch_id=$2", [tp.id, b]))[0]?.quantity ?? 0);
+await as(almR);
+const o0 = await stockAt(branch);
+const d0 = await stockAt(tb2);
+const trOp = uid();
+const tr = (await q("select rls_send_transfer($1,$2,$3,$4::jsonb,'Reposición') r", [trOp, branch, tb2, JSON.stringify([{ code: tp.barcode, quantity: 6 }])]))[0].r;
+ok("transferencia: guía numerada y en tránsito", tr.number?.startsWith("TR001-") && (await q("select status from transfer_orders where id=$1", [tr.transfer_id]))[0].status === "en_transito", tr.number);
+ok("transferencia: sale del origen y aún no llega al destino", (await stockAt(branch)) === o0 - 6 && (await stockAt(tb2)) === d0);
+ok("transferencia reenviada no sale dos veces", (await q("select rls_send_transfer($1,$2,$3,$4::jsonb,'') r", [trOp, branch, tb2, JSON.stringify([{ code: tp.barcode, quantity: 6 }])]))[0].r.repetida === true && (await stockAt(branch)) === o0 - 6);
+await sudo();
+const entriesBefore = Number((await q("select count(*) c from journal_entries"))[0].c);
+await as(almR);
+await q("select rls_receive_transfer($1,$2,$3::jsonb,'Llegó una caja abierta')", [uid(), tr.transfer_id, JSON.stringify([{ product_id: tp.id, quantity: 5 }])]);
+ok("recepción con faltante: entra lo recibido en destino", (await stockAt(tb2)) === d0 + 5);
+ok("la transferencia queda recibida con diferencias", (await q("select status from transfer_orders where id=$1", [tr.transfer_id]))[0].status === "recibida_con_diferencias");
+await sudo();
+ok("el faltante en tránsito se contabiliza como merma", Number((await q("select count(*) c from journal_entries"))[0].c) === entriesBefore + 1);
+await as(almR);
+await fails("no se recibe dos veces", "select rls_receive_transfer($1,$2,'[]'::jsonb,'')", [uid(), tr.transfer_id], "ya fue recibida");
+await fails("transferencia a la misma tienda", "select rls_send_transfer($1,$2,$2,$3::jsonb,'')", [uid(), branch, JSON.stringify([{ code: tp.barcode, quantity: 1 }])], "distintos");
+
+// Retorno a proveedor
+const rsup = (await q("select id from suppliers limit 1"))[0].id;
+const r0 = await stockAt(branch);
+const retorno = (await q("select rls_supplier_return($1,$2,$3,null,$4::jsonb,'Producto dañado') r", [uid(), branch, rsup, JSON.stringify([{ code: tp.sku, quantity: 2 }])]))[0].r;
+ok("retorno a proveedor numerado y descuenta stock", retorno.number?.startsWith("DV001-") && (await stockAt(branch)) === r0 - 2, retorno.number);
+await sudo();
+const retEntry = await q("select l.account_code, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_type='inventario' and e.description like 'Retorno a proveedor%'");
+ok("el retorno se contabiliza como reclamo al proveedor (1673), no como merma", retEntry.some((l) => l.account_code === "1673" && Number(l.debit) > 0) && !retEntry.some((l) => l.account_code === "6591"), JSON.stringify(retEntry));
+await as(comp);
+await fails("comprador no envía transferencias", "select rls_send_transfer($1,$2,$3,$4::jsonb,'')", [uid(), branch, tb2, JSON.stringify([{ code: tp.barcode, quantity: 1 }])], "no puede transferir");
+ok("comprador consulta los retornos", (await q("select * from supplier_returns")).length === 1);
+await sudo();
+
 ok("final: todos los asientos cuadran", (await q("select entry_id from journal_lines group by entry_id having sum(debit) <> sum(credit)")).length === 0);
 const drift2 = await q(`select count(*) c from stock s where quantity <> (select sum(quantity) from stock_movements m where m.product_id=s.product_id and m.branch_id=s.branch_id)`);
 ok("final: stock = suma de kardex", Number(drift2[0].c) === 0);

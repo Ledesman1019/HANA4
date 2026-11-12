@@ -48,6 +48,7 @@ import {
   Target,
   Timer,
   Truck,
+  Undo2,
   UserPlus,
   UserRound,
   Users,
@@ -123,6 +124,8 @@ export const SAP_MODULES: SapModule[] = [
         tiles: [
           t("Recepción de Mercadería", "/compras?estado=ordenada", PackageCheck, "compras", "view", ["inventario", "edit"]),
           t("Recibos de Mercadería (Histórico)", "/inventario/movimientos?tipo=compra", History, "inventario", "view", ["compras", "view"]),
+          t("Transferencias entre Tiendas", "/inventario/transferencias", Truck, "inventario"),
+          t("Retornos a Proveedor", "/inventario/retornos", Undo2, "inventario"),
         ],
       },
       {
