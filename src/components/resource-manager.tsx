@@ -59,9 +59,21 @@ type Props<T> = {
   pageSize?: number;
   /** Habilita «Exportar» (Excel, PDF, CSV, imprimir) sobre las filas filtradas */
   exportable?: { title: string; filename: string; columns: ExportField<T>[] };
+  /**
+   * Filtro propio de la pantalla (ej. categoría, estado del colaborador). Si no se indica y la
+   * tabla maneja activos/inactivos, se ofrece ese filtro automáticamente.
+   */
+  filter?: RowFilter<T>;
 };
 
-export type ExportField<T> = Omit<ExportColumn, "key"> & { value: (row: T) => string | number | null | undefined };
+export type RowFilter<T> = {
+  label: string;
+  options: { value: string; label: string; test: (row: T) => boolean }[];
+};
+
+export type ExportField<T> = Omit<ExportColumn, "key"> & {
+  value: (row: T) => string | number | null | undefined;
+};
 
 /**
  * Listado + alta/edición en ventana modal para cualquier maestro.
@@ -84,6 +96,7 @@ export function ResourceManager<T>({
   startNew = false,
   pageSize = 20,
   exportable,
+  filter,
 }: Props<T>) {
   const { can } = useApp();
   // En Configuración todo cambio requiere el permiso "editar".
@@ -93,6 +106,25 @@ export function ResourceManager<T>({
   const canRemove = can(module, settings ? "edit" : "delete");
 
   const [query, setQuery] = useState(initialQuery);
+  const rowFilter = useMemo<RowFilter<T> | undefined>(
+    () =>
+      filter ??
+      (isActive
+        ? {
+            label: "Estado",
+            options: [
+              { value: "activos", label: "Activos", test: (r) => isActive(r) },
+              {
+                value: "inactivos",
+                label: "Inactivos",
+                test: (r) => !isActive(r),
+              },
+            ],
+          }
+        : undefined),
+    [filter, isActive],
+  );
+  const [filterValue, setFilterValue] = useState("");
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<T | "new" | null>(startNew && canCreate ? "new" : null);
   const [deleting, setDeleting] = useState<T | null>(null);
@@ -101,9 +133,9 @@ export function ResourceManager<T>({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => searchText(r).toLowerCase().includes(q));
-  }, [rows, query, searchText]);
+    const option = rowFilter?.options.find((o) => o.value === filterValue);
+    return rows.filter((r) => (!option || option.test(r)) && (!q || searchText(r).toLowerCase().includes(q)));
+  }, [rows, query, searchText, rowFilter, filterValue]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, pages - 1);
@@ -171,14 +203,41 @@ export function ResourceManager<T>({
               className="pl-9"
             />
           </div>
+          {rowFilter && (
+            <Select
+              value={filterValue}
+              onChange={(e) => {
+                setFilterValue(e.target.value);
+                setPage(0);
+              }}
+              aria-label={rowFilter.label}
+              className="w-auto min-w-40"
+            >
+              <option value="">{rowFilter.label}: todos</option>
+              {rowFilter.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {toolbar}
             {exportable && (
               <ExportMenu
                 title={exportable.title}
-                subtitle={query.trim() ? `Filtro: «${query.trim()}»` : undefined}
+                subtitle={
+                  [query.trim() && `Búsqueda: «${query.trim()}»`, rowFilter?.options.find((o) => o.value === filterValue)?.label].filter(Boolean).join(" · ") ||
+                  undefined
+                }
                 filename={exportable.filename}
-                columns={exportable.columns.map((c, i) => ({ key: `c${i}`, header: c.header, type: c.type, width: c.width, total: c.total }))}
+                columns={exportable.columns.map((c, i) => ({
+                  key: `c${i}`,
+                  header: c.header,
+                  type: c.type,
+                  width: c.width,
+                  total: c.total,
+                }))}
                 rows={filtered.map((row) => Object.fromEntries(exportable.columns.map((c, i) => [`c${i}`, c.value(row)])))}
               />
             )}
@@ -195,7 +254,13 @@ export function ResourceManager<T>({
           <EmptyState
             icon={<SearchX className="h-5 w-5" />}
             title={rows.length === 0 ? "Aún no hay registros" : "Sin resultados"}
-            description={rows.length === 0 ? (canCreate ? `Crea el primer ${singular} con el botón «Nuevo ${singular}».` : undefined) : "Prueba con otro término de búsqueda."}
+            description={
+              rows.length === 0
+                ? canCreate
+                  ? `Crea el primer ${singular} con el botón «Nuevo ${singular}».`
+                  : undefined
+                : "Prueba con otro término de búsqueda."
+            }
           />
         ) : (
           <Table>
@@ -288,7 +353,12 @@ export function ResourceManager<T>({
             {fields.map((f, i) => {
               const raw = initial ? initial[f.name] : f.defaultValue;
               const value = raw == null ? "" : String(raw);
-              const common = { name: f.name, required: f.required, defaultValue: value, placeholder: f.placeholder };
+              const common = {
+                name: f.name,
+                required: f.required,
+                defaultValue: value,
+                placeholder: f.placeholder,
+              };
               if (f.type === "image") {
                 return (
                   <div key={f.name} className="sm:col-span-2">
@@ -298,7 +368,12 @@ export function ResourceManager<T>({
                 );
               }
               return (
-                <Field key={f.name} label={f.label + (f.required ? " *" : "")} hint={f.hint} className={cn((f.wide || f.type === "textarea") && "sm:col-span-2")}>
+                <Field
+                  key={f.name}
+                  label={f.label + (f.required ? " *" : "")}
+                  hint={f.hint}
+                  className={cn((f.wide || f.type === "textarea") && "sm:col-span-2")}
+                >
                   {f.type === "select" ? (
                     <Select {...common}>
                       {!f.required && <option value="">— Ninguno —</option>}

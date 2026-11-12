@@ -13,5 +13,6 @@ export const suppliers: EntityDef = {
     email: optionalEmail,
     phone: text(30).default(""),
     address: text(200).default(""),
+    payment_terms: z.coerce.number<number>("Plazo inválido").int("El plazo es en días enteros").min(0, "El plazo no puede ser negativo").max(365, "El plazo máximo es 365 días").default(30),
   }),
 };

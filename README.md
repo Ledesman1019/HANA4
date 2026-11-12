@@ -26,14 +26,15 @@ El menú completo está en [`src/shell/menu.ts`](src/shell/menu.ts). Cada mosaic
 | **Caja** | Apertura, ingresos y retiros, arqueo y cierre con diferencia, historial de cierres. |
 | **Clientes** | Padrón con DNI/RUC validado. |
 | **Inventario** | Catálogo con fotos, stock por sucursal, alertas de mínimo, ajustes por conteo, transferencias entre sucursales, kardex. |
-| **Compras** | Ciclo completo de aprovisionamiento: solicitud de pedido, aprobación, orden de compra, recepción con costo promedio ponderado. |
+| **Compras** | Ciclo completo de aprovisionamiento: solicitud de pedido, aprobación, orden de compra, recepción con costo promedio ponderado. Pedido **por caja, paquete, docena… o unidad** (el stock se lleva en unidades) y **centro de costo** en solicitudes y órdenes. |
 | **Cuentas por pagar** | Facturas de proveedor verificadas contra la orden, bloqueo por diferencias, pagos totales o parciales, vencimientos. |
-| **Proveedores** | Padrón de proveedores. |
+| **Proveedores** | Padrón de proveedores con su **plazo de crédito** (30 días por defecto): sus facturas vencen solas a ese plazo. |
 | **Finanzas** | Estado de resultados mensual y registro de gastos por categoría. |
 | **Lotes y vencimientos** | Productos perecibles con lote y fecha de vencimiento; la venta sale por FEFO y nunca toma mercadería vencida. |
 | **Centros de costo** | Resultado por sucursal (centro de beneficio) y gasto por área (administración, ventas, logística o los que crees). |
 | **Contabilidad** | Plan de cuentas (PCGE), asientos automáticos de cada operación, libro diario, libro mayor, balance de comprobación, estado de resultados, situación financiera, asientos manuales y cierre de periodos. |
-| **Personal** | Colaboradores, cargos, estado y planilla mensual. |
+| **Personal** | Colaboradores con su centro de costo, comisiones del mes y **pago de planilla** (sueldo + comisiones) con su asiento contable y anulación con extorno. |
+| **Mis datos** | Autoservicio: cada usuario ve su ficha, sus pagos de planilla y sus comisiones (lo garantiza la base de datos). |
 | **Reportes** | Ventas por día, categoría, medio de pago, vendedor y sucursal; top de productos; exportación CSV. |
 | **Configuración** | Empresa, impuesto y moneda, sucursales, usuarios, **roles y matriz de permisos**. |
 
@@ -57,9 +58,27 @@ Al cobrar una boleta o factura se genera su comprobante electrónico y se «env�
 Los permisos se asignan al **rol**, no a la persona: si mañana entran 20 vendedores, se configura un rol una vez.
 
 - **Configuración → Roles y permisos** muestra la matriz: por cada módulo, qué puede **Ver, Crear, Editar y Eliminar** cada rol. Se pueden crear roles propios (por ejemplo, «Supervisor de Ventas»).
-- Roles base: Administrador, Gerente, Vendedor, Almacenero y Contador.
+- **Roles del sistema** (cada uno ve en el inicio solo sus módulos; el menú sale de su matriz de permisos):
+
+| Rol | Ve | Hace |
+|---|---|---|
+| Superadministrador | Todo | Nivel especial del Administrador: nombra y retira administradores |
+| Administrador | Todo | Usuarios, roles, permisos y configuración de la empresa |
+| Gerente general | MM, SD, FI, CO, HCM | Consulta indicadores, ventas, compras y finanzas; aprueba compras y asigna crédito |
+| Gerente de área | MM, SD, CO | Supervisa la operación y aprueba solicitudes de pedido |
+| Contador | FI, CO | Contabilidad, gastos, facturas de proveedor, comprobantes y líneas de crédito |
+| Recursos humanos | HCM | Colaboradores, comisiones y pago de planilla |
+| Vendedor | SD | Registra clientes (no los edita) y emite cotizaciones; caja las cobra y la comisión es suya |
+| Almacenero | MM (Inventario y Almacén) | Productos, recepción de mercadería, inventario físico, ajustes y transferencias |
+| Comprador | MM (Compras) | Proveedores, solicitudes de pedido y órdenes de compra |
+| Cajero | SD (Ventas y Caja) | Vende en el punto de venta, cobra cotizaciones y créditos, abre y cierra su caja |
+| Auditor | Todo, solo lectura | Consulta operaciones y la auditoría sin poder modificar nada |
+| Empleado | Solo General | Mis datos (ficha, pagos de planilla y comisiones), mensajes y calendario |
+
+  La verificación automática `tests/menu/menu-por-rol.test.mjs` comprueba qué ve cada rol.
 - **Super Administrador** (el dueño o TI): es el único que puede nombrar, modificar o retirar administradores. Un administrador normal opera todo, pero no puede tocar a otro administrador ni concederse ese nivel. Nunca puede quedar el sistema sin un Super Administrador activo.
-- **Mínimo privilegio:** los roles base traen solo lo necesario (un vendedor no ve costos, sueldos ni finanzas) y nadie puede modificar los permisos de su propio rol ni cambiarse de rol.
+- **Mínimo privilegio:** los roles base traen solo lo necesario (un vendedor no ve costos, sueldos ni finanzas) y nadie puede modificar los permisos de su propio rol ni cambiarse de rol. Una cuenta creada sin rol nace como Empleado y sin acceso.
+- **Separación de datos por módulo:** cada pantalla muestra solo su información. Donde un proceso cruza módulos, la base de datos da acceso de lectura puntual (por ejemplo, Cuentas por pagar lee la orden de compra para verificar la factura) sin mostrar el módulo en el menú.
 - **Auditoría** (Configuración → Auditoría): queda registrado quién y cuándo concedió o quitó cada permiso, cambió un rol, creó o desactivó un usuario, restableció una contraseña, anuló una venta, ajustó stock, cerró caja con diferencia o cambió un sueldo. El registro lo escribe la base de datos y **nadie puede editarlo ni borrarlo**.
 - Los permisos se aplican **en la base de datos** (Row Level Security y funciones SQL), no solo en la interfaz: ocultar un botón no es la protección, es la comodidad.
 
@@ -234,7 +253,7 @@ Con el administrador ya creado, ejecuta [`supabase/seed.sql`](supabase/seed.sql)
 |---|---|---|
 | `npm run lint` | Estilo y **fronteras de módulos** (ver [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)) | — |
 | `npm run typecheck` | Tipos de TypeScript, incluidas las rutas tipadas | — |
-| `npm test` | **Más de 200 pruebas de reglas de negocio** en la base. Aplica todas las migraciones y la semilla sobre un Postgres en memoria (PGlite) y prueba permisos por rol (RLS), transacciones, integración entre módulos, contabilidad cuadrada, FEFO y que el stock coincida con el kardex | — |
+| `npm test` | **Más de 250 pruebas de reglas de negocio** en la base y la verificación del **menú de cada rol**. Aplica todas las migraciones y la semilla sobre un Postgres en memoria (PGlite) y prueba permisos por rol (RLS), transacciones, integración entre módulos, contabilidad cuadrada, FEFO y que el stock coincida con el kardex | — |
 | `npm run check` | Las tres anteriores juntas | — |
 | `npm run test:e2e -- <url>` | Contra un servidor real: recorre las rutas con usuarios temporales de varios roles, crea y desactiva registros desde la interfaz y descarga Excel, PDF y CSV. Borra los usuarios y los datos de prueba al terminar | `.env.local` con la clave de servicio, y Chrome o Edge |
 

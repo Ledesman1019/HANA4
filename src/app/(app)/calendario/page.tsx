@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { param } from "@/components/filters";
-import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
+import { ExportMenu } from "@/components/export-menu";
+import { buildQuery, FilterBar, param } from "@/components/filters";
+import { Badge, buttonClass, Card, CardHeader, EmptyState, Field, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { getContext } from "@/lib/auth";
 import { cn, formatMoney, todayIn } from "@/lib/utils";
 
@@ -27,7 +28,9 @@ const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? nu
 export default async function CalendarPage({ searchParams }: PageProps<"/calendario">) {
   const { supabase, settings, branch, can } = await getContext();
   const today = todayIn(settings.timezone);
-  const requested = param((await searchParams).mes);
+  const sp = await searchParams;
+  const requested = param(sp.mes);
+  const kind = Object.hasOwn(KIND, param(sp.tipo)) ? (param(sp.tipo) as Kind) : "";
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(requested) ? requested : today.slice(0, 7);
   const [year, mon] = month.split("-").map(Number);
   const first = `${month}-01`;
@@ -93,7 +96,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       detail: `Lote ${l.lot_number} · ${Number(l.quantity)} und.`,
       href: "/inventario/lotes",
     })),
-  ].sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind));
+  ]
+    .filter((e) => !kind || e.kind === kind)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind));
 
   const byDay = new Map<string, Event[]>();
   for (const e of events) byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]);
@@ -108,11 +113,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     <>
       <PageHeader title="Calendario" description="Vencimientos de cobros, pagos y lotes del mes.">
         <div className="flex items-center gap-1.5">
-          <Link href={`/calendario?mes=${shift(-1)}`} className={buttonClass("secondary", "sm")} aria-label="Mes anterior">
+          <Link href={`/calendario${buildQuery({ mes: shift(-1), tipo: kind })}`} className={buttonClass("secondary", "sm")} aria-label="Mes anterior">
             <ChevronLeft className="h-4 w-4" />
           </Link>
           <span className="min-w-36 text-center text-sm font-semibold text-slate-800 first-letter:uppercase">{title}</span>
-          <Link href={`/calendario?mes=${shift(1)}`} className={buttonClass("secondary", "sm")} aria-label="Mes siguiente">
+          <Link href={`/calendario${buildQuery({ mes: shift(1), tipo: kind })}`} className={buttonClass("secondary", "sm")} aria-label="Mes siguiente">
             <ChevronRight className="h-4 w-4" />
           </Link>
           {month !== today.slice(0, 7) && (
@@ -172,7 +177,36 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </Card>
 
       <Card className="mt-6">
-        <CardHeader title="Vencimientos del mes" description={`${events.length} ${events.length === 1 ? "registro" : "registros"}`} />
+        <CardHeader
+          title="Vencimientos del mes"
+          description={`${events.length} ${events.length === 1 ? "registro" : "registros"}`}
+          action={
+            <ExportMenu
+              title="Vencimientos"
+              subtitle={title}
+              filename={`vencimientos_${month}`}
+              size="sm"
+              columns={[
+                { key: "fecha", header: "Fecha", type: "date" },
+                { key: "tipo", header: "Tipo" },
+                { key: "detalle", header: "Detalle", width: 36 },
+                { key: "referencia", header: "Referencia", width: 32 },
+              ]}
+              rows={events.map((e) => ({ fecha: e.date, tipo: KIND[e.kind].label, detalle: e.title, referencia: e.detail }))}
+            />
+          }
+        />
+        <FilterBar action="/calendario">
+          <input type="hidden" name="mes" value={month} />
+          <Field label="Tipo">
+            <Select name="tipo" defaultValue={kind}>
+              <option value="">Todos</option>
+              <option value="cobro">Cobros a clientes</option>
+              <option value="pago">Pagos a proveedores</option>
+              <option value="lote">Lotes que vencen</option>
+            </Select>
+          </Field>
+        </FilterBar>
         {events.length === 0 ? (
           <EmptyState title="Sin vencimientos este mes" description="No hay cobros, pagos ni lotes que venzan en este periodo." />
         ) : (

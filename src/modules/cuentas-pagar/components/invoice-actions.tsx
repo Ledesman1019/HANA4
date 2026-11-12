@@ -21,10 +21,13 @@ const METHODS = [
 ];
 
 /** Registrar la factura del proveedor de una orden ya recibida. */
-export function RegisterInvoiceButton({ purchaseId, orderTotal, today }: { purchaseId: string; orderTotal: number; today: string }) {
+export function RegisterInvoiceButton({ purchaseId, orderTotal, today, paymentTerms = 30 }: { purchaseId: string; orderTotal: number; today: string; paymentTerms?: number }) {
   const { money } = useApp();
   const [open, setOpen] = useState(false);
   const [total, setTotal] = useState(orderTotal.toFixed(2));
+  // El vencimiento sigue el plazo de crédito del proveedor desde la fecha de emisión
+  const [issueDate, setIssueDate] = useState(today);
+  const [dueDate, setDueDate] = useState(addDays(today, paymentTerms));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -68,10 +71,20 @@ export function RegisterInvoiceButton({ purchaseId, orderTotal, today }: { purch
               <Input type="number" min={0.01} step="0.01" inputMode="decimal" required value={total} onChange={(e) => setTotal(e.target.value)} className="tabular" />
             </Field>
             <Field label="Fecha de emisión *">
-              <Input name="issue_date" type="date" required defaultValue={today} max={today} />
+              <Input
+                name="issue_date"
+                type="date"
+                required
+                value={issueDate}
+                max={today}
+                onChange={(e) => {
+                  setIssueDate(e.target.value);
+                  if (e.target.value) setDueDate(addDays(e.target.value, paymentTerms));
+                }}
+              />
             </Field>
-            <Field label="Fecha de vencimiento *" hint="Hasta cuándo hay plazo para pagar.">
-              <Input name="due_date" type="date" required defaultValue={addDays(today, 30)} />
+            <Field label="Fecha de vencimiento *" hint={paymentTerms > 0 ? `Crédito del proveedor: ${paymentTerms} días.` : "Proveedor al contado."}>
+              <Input name="due_date" type="date" required value={dueDate} min={issueDate} onChange={(e) => setDueDate(e.target.value)} />
             </Field>
           </div>
           {outOfTolerance && (

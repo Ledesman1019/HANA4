@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { KeyRound, Pencil, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { KeyRound, Pencil, Search, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/components/app-provider";
 import { Dialog, DialogFooter } from "@/components/dialog";
+import { ExportMenu } from "@/components/export-menu";
 import { Badge, Button, Card, CardHeader, Field, FormError, Input, Select, Table, Td, Th } from "@/components/ui";
 import type { Profile, RoleRow } from "@/lib/types";
 import { createUser, resetUserPassword, updateUser } from "@/modules/configuracion/actions";
@@ -16,7 +17,10 @@ export function UsersView({ rows, roles, currentUserId, isSuper, branches }: { r
   const canEdit = can("configuracion", "edit");
   const [editing, setEditing] = useState<Profile | "new" | null>(null);
   const [resetting, setResetting] = useState<Profile | null>(null);
-  const [role, setRole] = useState("cajero");
+  const [role, setRole] = useState("empleado");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -30,9 +34,19 @@ export function UsersView({ rows, roles, currentUserId, isSuper, branches }: { r
   const assignable = roles.filter((r) => r.id !== "admin" || isSuper);
   // Un administrador solo puede ser gestionado por un Super Administrador
   const manageable = (u: Profile) => canEdit && (u.role !== "admin" || isSuper);
+  const roleLabel = (u: Profile) => (u.is_super ? "Superadministrador" : (roleOf(u.role)?.name ?? u.role));
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (u) =>
+        (!roleFilter || u.role === roleFilter) &&
+        (!statusFilter || (statusFilter === "activos") === u.active) &&
+        (!q || `${u.full_name} ${u.email}`.toLowerCase().includes(q)),
+    );
+  }, [rows, query, roleFilter, statusFilter]);
 
   function open(target: Profile | "new") {
-    setRole(target === "new" ? "cajero" : target.role);
+    setRole(target === "new" ? "empleado" : target.role);
     setError(null);
     setEditing(target);
   }
@@ -93,6 +107,39 @@ export function UsersView({ rows, roles, currentUserId, isSuper, branches }: { r
             ) : undefined
           }
         />
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-3">
+          <div className="relative min-w-48 flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o correo…" aria-label="Buscar" className="pl-9" />
+          </div>
+          <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label="Rol" className="w-auto min-w-40">
+            <option value="">Rol: todos</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Estado" className="w-auto min-w-36">
+            <option value="">Estado: todos</option>
+            <option value="activos">Con acceso</option>
+            <option value="inactivos">Sin acceso</option>
+          </Select>
+          <div className="ml-auto">
+            <ExportMenu
+              title="Usuarios del sistema"
+              filename="usuarios"
+              columns={[
+                { key: "nombre", header: "Nombre" },
+                { key: "correo", header: "Correo" },
+                { key: "rol", header: "Rol" },
+                { key: "sucursal", header: "Sucursal" },
+                { key: "estado", header: "Estado" },
+              ]}
+              rows={shown.map((u) => ({ nombre: u.full_name, correo: u.email, rol: roleLabel(u), sucursal: branchName(u.branch_id), estado: u.active ? "Con acceso" : "Sin acceso" }))}
+            />
+          </div>
+        </div>
         <Table>
           <thead>
             <tr>
@@ -104,7 +151,7 @@ export function UsersView({ rows, roles, currentUserId, isSuper, branches }: { r
             </tr>
           </thead>
           <tbody>
-            {rows.map((u) => (
+            {shown.map((u) => (
               <tr key={u.id} className={u.active ? "transition-colors hover:bg-slate-50/70" : "opacity-55"}>
                 <Td>
                   <p className="font-medium text-slate-900">
@@ -116,7 +163,7 @@ export function UsersView({ rows, roles, currentUserId, isSuper, branches }: { r
                   {u.is_super ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-xs font-semibold text-white">
                       <ShieldCheck className="h-3.5 w-3.5" />
-                      Super Administrador
+                      Superadministrador
                     </span>
                   ) : (
                     <Badge tone={u.role === "admin" ? "blue" : "neutral"}>{roleOf(u.role)?.name ?? u.role}</Badge>

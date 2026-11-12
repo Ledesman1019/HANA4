@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Banknote, CreditCard, History, Wallet } from "lucide-react";
-import { Badge, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
+import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import type { CashSession } from "@/modules/caja/types";
 import { formatDateTime, formatMoney } from "@/lib/utils";
@@ -9,24 +10,14 @@ import { CashMovementButton, CloseCashButton, OpenCashCard } from "@/modules/caj
 export const metadata: Metadata = { title: "Caja" };
 
 type Movement = { id: string; type: "ingreso" | "egreso"; amount: number; concept: string; created_at: string };
-type SessionRow = CashSession & { opener: { full_name: string } | null; branch: { name: string } | null };
 
 export default async function CashPage() {
   const { supabase, userId, settings, branch, can } = await requireAccess("caja");
   const money = (n: number | null) => formatMoney(n, settings.currency_symbol);
   const canOperate = can("caja", "create");
 
-  const [openRes, historyRes] = await Promise.all([
-    supabase.from("cash_sessions").select("*, branch:branches(name)").eq("opened_by", userId).eq("status", "abierta").maybeSingle(),
-    supabase
-      .from("cash_sessions")
-      .select("*, opener:profiles!cash_sessions_opened_by_fkey(full_name), branch:branches(name)")
-      .eq("status", "cerrada")
-      .order("closed_at", { ascending: false })
-      .limit(30),
-  ]);
+  const openRes = await supabase.from("cash_sessions").select("*, branch:branches(name)").eq("opened_by", userId).eq("status", "abierta").maybeSingle();
   const session = openRes.data as (CashSession & { branch: { name: string } | null }) | null;
-  const history = (historyRes.data ?? []) as SessionRow[];
 
   let detail: { expected: number; cashSales: number; otherSales: number; salesCount: number; movements: Movement[] } | null = null;
   if (session) {
@@ -48,7 +39,7 @@ export default async function CashPage() {
 
   return (
     <>
-      <PageHeader title="Caja" description="Apertura, movimientos de efectivo y arqueo de cada turno.">
+      <PageHeader title="Caja: apertura y cierre" description="Tu turno: apertura, ingresos y retiros de efectivo y arqueo al cierre.">
         {session && detail && (
           <>
             <CashMovementButton sessionId={session.id} type="ingreso" />
@@ -108,44 +99,19 @@ export default async function CashPage() {
         <div className="mx-auto max-w-md">
           <OpenCashCard branchName={branch.name} />
         </div>
-      ) : null}
+      ) : (
+        <EmptyState
+          icon={<History className="h-5 w-5" />}
+          title="Tu rol solo consulta la caja"
+          description="Puedes revisar los arqueos de todas las cajas en el historial de cierres."
+          action={
+            <Link href="/caja/cierres" className={buttonClass("secondary")}>
+              Ver cierres de caja
+            </Link>
+          }
+        />
+      )}
 
-      <Card className="mt-6">
-        <CardHeader title="Historial de cierres" description={can("caja", "view") ? "Últimos 30 arqueos de todas las cajas" : "Tus últimos arqueos"} />
-        {history.length === 0 ? (
-          <EmptyState icon={<History className="h-5 w-5" />} title="Aún no hay cierres" description="Cada cierre de caja quedará registrado aquí con su diferencia." />
-        ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>Cierre</Th>
-                <Th>Cajero</Th>
-                <Th>Sucursal</Th>
-                <Th className="text-right">Esperado</Th>
-                <Th className="text-right">Contado</Th>
-                <Th className="text-right">Diferencia</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((s) => {
-                const diff = Number(s.difference ?? 0);
-                return (
-                  <tr key={s.id}>
-                    <Td className="tabular whitespace-nowrap">{formatDateTime(s.closed_at, settings.timezone)}</Td>
-                    <Td>{s.opener?.full_name ?? "—"}</Td>
-                    <Td>{s.branch?.name ?? "—"}</Td>
-                    <Td className="tabular text-right">{money(s.expected_amount)}</Td>
-                    <Td className="tabular text-right">{money(s.counted_amount)}</Td>
-                    <Td className="text-right">
-                      <Badge tone={diff === 0 ? "green" : diff > 0 ? "amber" : "red"}>{diff === 0 ? "Cuadrado" : `${diff > 0 ? "+" : "−"} ${money(Math.abs(diff))}`}</Badge>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-        )}
-      </Card>
     </>
   );
 }

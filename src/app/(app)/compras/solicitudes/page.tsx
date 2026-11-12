@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ClipboardPen, Plus } from "lucide-react";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
-import { Badge, buttonClass, Card, EmptyState, Field, PageHeader, Select, Table, Td, Th } from "@/components/ui";
+import { ExportMenu } from "@/components/export-menu";
+import { Badge, buttonClass, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { REQUISITION_STATUS } from "@/modules/compras/types";
 import { formatDateTime } from "@/lib/utils";
-import { PurchasingTabs } from "@/modules/compras/components/purchasing-tabs";
 
 export const metadata: Metadata = { title: "Solicitudes de pedido" };
 
@@ -28,6 +28,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps<"/com
   const sp = await searchParams;
   const status = Object.hasOwn(REQUISITION_STATUS, param(sp.estado)) ? param(sp.estado) : "";
   const page = Math.max(1, Number.parseInt(param(sp.pagina), 10) || 1);
+  const q = param(sp.q).trim().slice(0, 30).replace(/[%_\,()]/g, "");
 
   let query = supabase
     .from("purchase_requisitions")
@@ -36,6 +37,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps<"/com
       { count: "exact" },
     )
     .eq("branch_id", branch.id)
+    .ilike("number", `%${q}%`)
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (status) query = query.eq("status", status);
@@ -45,7 +47,22 @@ export default async function RequisitionsPage({ searchParams }: PageProps<"/com
 
   return (
     <>
-      <PageHeader title="Compras" description="Solicitudes de pedido: cualquier área pide mercadería; Compras revisa, aprueba y emite la orden al proveedor.">
+      <PageHeader title="Solicitudes de pedido" description="Pedidos de mercadería por aprobar. Compras los revisa, aprueba y emite la orden al proveedor.">
+        <ExportMenu
+          title="Solicitudes de pedido"
+          subtitle={branch.name}
+          filename="solicitudes-de-pedido"
+          source={`/api/export/solicitudes${buildQuery({ estado: status, q })}`}
+          columns={[
+            { key: "numero", header: "Solicitud" },
+            { key: "fecha", header: "Fecha" },
+            { key: "solicitante", header: "Solicitante" },
+            { key: "centro", header: "Centro de costo" },
+            { key: "justificacion", header: "Justificación" },
+            { key: "productos", header: "Productos", type: "number" },
+            { key: "estado", header: "Estado" },
+          ]}
+        />
         {can("compras", "create") && (
           <Link href="/compras/solicitudes/nueva" className={buttonClass("primary")}>
             <Plus className="h-4 w-4" />
@@ -53,7 +70,6 @@ export default async function RequisitionsPage({ searchParams }: PageProps<"/com
           </Link>
         )}
       </PageHeader>
-      <PurchasingTabs />
 
       <Card>
         <FilterBar action="/compras/solicitudes">
@@ -66,6 +82,9 @@ export default async function RequisitionsPage({ searchParams }: PageProps<"/com
                 </option>
               ))}
             </Select>
+          </Field>
+          <Field label="N.º de solicitud">
+            <Input type="search" name="q" defaultValue={q} placeholder="SP001-00000004" />
           </Field>
         </FilterBar>
 
@@ -119,7 +138,7 @@ export default async function RequisitionsPage({ searchParams }: PageProps<"/com
             </tbody>
           </Table>
         )}
-        <Pagination page={page} pageSize={PAGE_SIZE} total={count ?? 0} hrefFor={(p) => `/compras/solicitudes${buildQuery({ estado: status, pagina: p })}`} />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={count ?? 0} hrefFor={(p) => `/compras/solicitudes${buildQuery({ estado: status, q, pagina: p })}`} />
       </Card>
     </>
   );

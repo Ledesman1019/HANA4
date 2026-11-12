@@ -5,7 +5,7 @@ import { ArrowLeft, FilePlus2 } from "lucide-react";
 import { DocumentFlow, type FlowStep } from "@/components/document-flow";
 import { Badge, buttonClass, Card, CardHeader, PageHeader, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
-import { REQUISITION_STATUS } from "@/modules/compras/types";
+import { REQUISITION_STATUS, packLabel } from "@/modules/compras/types";
 import { formatDate, formatDateTime, formatQty } from "@/lib/utils";
 import { RequisitionDecision } from "@/modules/compras/components/requisition";
 
@@ -25,7 +25,7 @@ type Detail = {
   decider: { full_name: string } | null;
   branch: { name: string } | null;
   purchase: { id: string; number: string; status: string } | null;
-  items: { id: string; quantity: number; product_id: string; product: { name: string; sku: string; unit: string; min_stock: number } | null }[];
+  items: { id: string; quantity: number; pack_unit: string; pack_size: number; product_id: string; product: { name: string; sku: string; unit: string; min_stock: number } | null }[];
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,7 +38,7 @@ export default async function RequisitionDetailPage({ params }: PageProps<"/comp
   const { data } = await supabase
     .from("purchase_requisitions")
     .select(
-      "*, requester:profiles!purchase_requisitions_requested_by_fkey(full_name), decider:profiles!purchase_requisitions_decided_by_fkey(full_name), branch:branches(name), purchase:purchases!purchase_requisitions_purchase_id_fkey(id, number, status), items:purchase_requisition_items(id, quantity, product_id, product:products(name, sku, unit, min_stock))",
+      "*, requester:profiles!purchase_requisitions_requested_by_fkey(full_name), decider:profiles!purchase_requisitions_decided_by_fkey(full_name), branch:branches(name), purchase:purchases!purchase_requisitions_purchase_id_fkey(id, number, status), items:purchase_requisition_items(id, quantity, pack_unit, pack_size, product_id, product:products(name, sku, unit, min_stock))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -128,6 +128,9 @@ export default async function RequisitionDetailPage({ params }: PageProps<"/comp
                     <Td className="tabular text-right">{formatQty(i.product?.min_stock)}</Td>
                     <Td className="tabular text-right font-semibold text-slate-900">
                       {formatQty(i.quantity)} <span className="text-xs font-normal text-slate-500">{i.product?.unit}</span>
+                      {packLabel(i.quantity, i.product?.unit ?? "", i.pack_unit, i.pack_size) && (
+                        <span className="block text-[11px] font-normal text-slate-500">{packLabel(i.quantity, i.product?.unit ?? "", i.pack_unit, i.pack_size)}</span>
+                      )}
                     </Td>
                   </tr>
                 );

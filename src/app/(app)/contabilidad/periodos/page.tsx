@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Badge, Card, CardHeader, Table, Td, Th } from "@/components/ui";
+import { ExportMenu } from "@/components/export-menu";
+import { FilterBar, param } from "@/components/filters";
+import { Badge, Card, CardHeader, Field, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
 import { formatDateTime, todayIn } from "@/lib/utils";
@@ -12,8 +14,9 @@ type Period = { period: string; closed_at: string | null; closer: { full_name: s
 const monthName = (period: string) =>
   new Intl.DateTimeFormat("es-PE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${period}-01T00:00:00Z`));
 
-export default async function PeriodsPage() {
+export default async function PeriodsPage({ searchParams }: PageProps<"/contabilidad/periodos">) {
   const { supabase, settings, can } = await requireAccess("contabilidad", "view");
+  const state = ["abiertos", "cerrados"].includes(param((await searchParams).estado)) ? param((await searchParams).estado) : "";
   const current = todayIn(settings.timezone).slice(0, 7);
 
   const [periodsRes, entries] = await Promise.all([
@@ -31,13 +34,45 @@ export default async function PeriodsPage() {
     months.push(`${y}-${String(m).padStart(2, "0")}`);
   }
   months.reverse();
+  const shown = months.filter((m) => !state || (state === "cerrados") === Boolean(stored.get(m)?.closed_at));
 
   return (
     <Card>
       <CardHeader
         title="Periodos contables"
         description="Cerrar un mes impide registrar operaciones con fecha de ese mes: así los libros ya presentados no cambian. El mes en curso siempre está abierto."
+        action={
+          <ExportMenu
+            title="Periodos contables"
+            filename="periodos-contables"
+            size="sm"
+            columns={[
+              { key: "periodo", header: "Periodo" },
+              { key: "asientos", header: "Asientos", type: "number", total: true },
+              { key: "estado", header: "Estado" },
+              { key: "cerrado", header: "Cerrado por" },
+            ]}
+            rows={shown.map((m) => {
+              const p = stored.get(m);
+              return {
+                periodo: monthName(m),
+                asientos: counts.get(m) ?? 0,
+                estado: m === current ? "En curso" : p?.closed_at ? "Cerrado" : "Abierto",
+                cerrado: p?.closed_at ? `${p.closer?.full_name ?? ""} · ${formatDateTime(p.closed_at, settings.timezone)}` : "",
+              };
+            })}
+          />
+        }
       />
+      <FilterBar action="/contabilidad/periodos">
+        <Field label="Estado">
+          <Select name="estado" defaultValue={state}>
+            <option value="">Todos</option>
+            <option value="abiertos">Abiertos</option>
+            <option value="cerrados">Cerrados</option>
+          </Select>
+        </Field>
+      </FilterBar>
       <Table>
         <thead>
           <tr>
@@ -49,7 +84,7 @@ export default async function PeriodsPage() {
           </tr>
         </thead>
         <tbody>
-          {months.map((period) => {
+          {shown.map((period) => {
             const p = stored.get(period);
             const closed = Boolean(p?.closed_at);
             return (

@@ -28,6 +28,9 @@ export type InventoryRow = {
   image_url?: string | null;
   /** Controla lotes y fechas de vencimiento (salida FEFO) */
   track_lots?: boolean;
+  /** Presentación de compra: «CAJA» de pack_size unidades ("" = por unidad) */
+  pack_unit?: string;
+  pack_size?: number;
 };
 
 export const MOVEMENT_LABELS: Record<string, string> = {

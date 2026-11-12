@@ -31,3 +31,21 @@ export async function collectPayment(input: z.input<typeof paymentSchema>): Prom
   revalidatePath("/", "layout");
   return success({ balance: Number(data) });
 }
+
+/** Asigna o cambia la línea de crédito de un cliente (control de crédito). Queda en la auditoría. */
+export async function setCustomerCredit(customerId: string, limit: number, days: number): Promise<ActionResult> {
+  const parsed = z
+    .object({
+      id: uuid,
+      limit: z.coerce.number<number>("Línea inválida").min(0, "La línea no puede ser negativa").max(99_999_999),
+      days: z.coerce.number<number>("Plazo inválido").int("El plazo es en días enteros").min(0).max(365, "El plazo máximo es 365 días"),
+    })
+    .safeParse({ id: customerId, limit, days });
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const { supabase, can } = await getContext();
+  if (!can("cuentas_cobrar", "edit")) return fail("Tu rol no puede asignar líneas de crédito");
+  const { error } = await supabase.rpc("set_customer_credit", { p_customer: parsed.data.id, p_limit: parsed.data.limit, p_days: parsed.data.days });
+  if (error) return fail(friendlyError(error));
+  revalidatePath("/", "layout");
+  return success(undefined);
+}

@@ -16,7 +16,21 @@ const STATUS: Record<Employee["status"], { label: string; tone: BadgeTone }> = {
 
 type Option = { value: string; label: string };
 
-export function EmployeesView({ rows, branches, users, today, startNew }: { rows: Employee[]; branches: Option[]; users: Option[]; today: string; startNew?: boolean }) {
+export function EmployeesView({
+  rows,
+  branches,
+  users,
+  costCenters,
+  today,
+  startNew,
+}: {
+  rows: Employee[];
+  branches: Option[];
+  users: Option[];
+  costCenters: Option[];
+  today: string;
+  startNew?: boolean;
+}) {
   const { money } = useApp();
   const branchName = (id: string | null) => branches.find((b) => b.value === id)?.label ?? "—";
 
@@ -32,6 +46,7 @@ export function EmployeesView({ rows, branches, users, today, startNew }: { rows
     },
     { header: "Cargo", cell: (e) => e.position },
     { header: "Sucursal", cell: (e) => branchName(e.branch_id) },
+    { header: "Centro de costo", cell: (e) => costCenters.find((c) => c.value === e.cost_center_id)?.label ?? <span className="text-slate-400">ADM (por defecto)</span> },
     { header: "Ingreso", cell: (e) => <span className="tabular">{formatDate(e.hire_date)}</span> },
     { header: "Sueldo", align: "right", cell: (e) => money(e.salary) },
     {
@@ -47,6 +62,7 @@ export function EmployeesView({ rows, branches, users, today, startNew }: { rows
     { name: "doc_number", label: "Documento de identidad", required: true, maxLength: 20 },
     { name: "position", label: "Cargo", required: true, maxLength: 80 },
     { name: "branch_id", label: "Sucursal", type: "select", options: branches },
+    { name: "cost_center_id", label: "Centro de costo", type: "select", options: costCenters, hint: "Su sueldo se carga a esta área. Vacío: Administración." },
     { name: "status", label: "Estado", type: "select", required: true, defaultValue: "activo", options: Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label })) },
     { name: "salary", label: "Sueldo mensual", type: "number", required: true, defaultValue: "0" },
     { name: "commission_rate", label: "Comisión por ventas (%)", type: "number", required: true, defaultValue: "0", hint: "Sobre la venta neta (sin impuesto) de cada comprobante." },
@@ -60,6 +76,7 @@ export function EmployeesView({ rows, branches, users, today, startNew }: { rows
     <ResourceManager
       actions={{ save: saveEmployee }}
       module="rrhh"
+      filter={{ label: "Estado", options: Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label, test: (e: Employee) => e.status === value })) }}
       startNew={startNew}
       singular="colaborador"
       rows={rows}

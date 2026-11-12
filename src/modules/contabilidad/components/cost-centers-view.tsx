@@ -30,6 +30,15 @@ export function CostCentersView({ rows, startNew }: { rows: CostCenter[]; startN
       getId={(c) => c.id}
       searchText={(c) => `${c.code} ${c.name}`}
       isActive={(c) => c.active}
+      exportable={{
+        title: "Centros de costo",
+        filename: "centros-de-costo",
+        columns: [
+          { header: "Código", value: (c) => c.code },
+          { header: "Centro de costo", value: (c) => c.name },
+          { header: "Estado", value: (c) => (c.active ? "Activo" : "Inactivo") },
+        ],
+      }}
     />
   );
 }

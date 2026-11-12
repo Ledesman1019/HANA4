@@ -75,10 +75,11 @@ await db.exec(readFileSync(`${root}/supabase/seed.sql`, "utf8"));
 // La 0007 se aplica sobre datos existentes: así se prueba la contabilización del historial
 await db.exec(readFileSync(`${root}/supabase/migrations/0007_contabilidad.sql`, "utf8"));
 await db.exec(readFileSync(`${root}/supabase/migrations/0008_lotes_centros_costo.sql`, "utf8"));
+await db.exec(readFileSync(`${root}/supabase/migrations/0009_roles_planilla_compras.sql`, "utf8"));
 ok("centros de costo en gastos ya contabilizados", (await q("select count(*) c from journal_lines l join journal_entries e on e.id=l.entry_id where e.source_type='gasto' and l.account_code like '6%' and l.cost_center_id is null"))[0].c == 0);
 const backfill = (await q("select count(*) filter (where source_type='venta') v, count(*) filter (where source_type='inventario') i, count(*) filter (where source_type='gasto') g from journal_entries"))[0];
 ok("contabilidad: historial contabilizado al migrar", Number(backfill.v) === 2 * Number((await q("select count(*) c from sales where total > 0"))[0].c) && Number(backfill.i) === 24 && Number(backfill.g) === 5, JSON.stringify(backfill));
-ok("schema_version = 8", (await q("select schema_version() v"))[0].v === 8);
+ok("schema_version = 9", (await q("select schema_version() v"))[0].v === 9);
 const counts = (await q("select (select count(*) from products) p, (select count(*) from sales) s, (select count(*) from stock_movements) m"))[0];
 ok("seed aplicado", Number(counts.p) === 24 && Number(counts.s) > 200, JSON.stringify(counts));
 const drift = await q(`select count(*) c from stock s where quantity <> (select sum(quantity) from stock_movements m where m.product_id=s.product_id and m.branch_id=s.branch_id)`);
@@ -96,7 +97,7 @@ await as(cajero);
 const prods = await q("select id, price, cost from products order by sku limit 2");
 ok("cajero ve productos", prods.length === 2);
 ok("cajero no ve ventas ajenas", (await q("select * from sales")).length === 0);
-ok("cajero no ve empleados", (await q("select * from employees")).length === 0);
+ok("cajero solo ve su propia ficha de colaborador", (await q("select * from employees")).length === 1);
 await fails("cajero no inserta productos", "insert into products (sku, name) values ('X','X')", [], "row-level security");
 await fails("cajero no escribe stock directo", "update stock set quantity = 9999 returning *", [], null).catch(() => {});
 const items = JSON.stringify([{ product_id: prods[0].id, quantity: 2 }, { product_id: prods[1].id, quantity: 1 }]);
@@ -128,7 +129,7 @@ ok("cajero ve ítems de su venta", (await q("select * from sale_items")).length 
 // --- Comisiones (Ventas → Personal) ---
 const com = await q("select * from commissions");
 ok("venta genera la comisión del vendedor", com.length === 1 && com[0].sale_id === saleId && Number(com[0].amount) === Math.round(Number(sale.subtotal) * 2) / 100 && com[0].status === "generada", `base=${com[0]?.base} 2% = ${com[0]?.amount}`);
-ok("vendedor no ve sueldos (empleados)", (await q("select * from employees")).length === 0);
+ok("no ve sueldos ajenos: solo su ficha", (await q("select doc_number from employees")).map((e) => e.doc_number).join() === "47889900");
 await fails("comisión no se edita a mano", "update commissions set amount=9999", [], "permission denied");
 
 // --- Facturación electrónica (demo) ---
@@ -154,22 +155,27 @@ const totalQty = Number((await q("select sum(quantity) v from stock where produc
 // --- Ciclo de aprovisionamiento: solicitud → aprobación → orden → recepción ---
 const poItems = JSON.stringify([{ product_id: prods[0].id, quantity: 100, unit_cost: costBefore + 2 }]);
 await fails("almacenero ya no emite órdenes directas", "select create_purchase($1,$2,current_date+3,'x',$3::jsonb)", [sup, branch, poItems], "solicitud de pedido");
+await fails("almacenero no crea solicitudes de pedido (las crea Compras)", "select create_requisition($1,'x',$2::jsonb)", [branch, JSON.stringify([{ product_id: prods[0].id, quantity: 1 }])], "no puede crear");
+ok("almacenero no ve proveedores para crear (sin permiso de proveedores)", !(await q("select can('proveedores','create') v"))[0].v);
+await sudo();
+const comp = await mk("comprador@erp.test");
+await grant(comp, "comprador");
+await as(comp);
 const req = (await q("select create_requisition($1,'Stock bajo de arroz',$2::jsonb) id", [branch, JSON.stringify([{ product_id: prods[0].id, quantity: 100 }])]))[0].id;
 const reqRow = (await q("select * from purchase_requisitions where id=$1", [req]))[0];
 ok("solicitud de pedido creada pendiente", reqRow.status === "pendiente" && reqRow.number.startsWith("SP001-"), reqRow.number);
-await fails("almacenero no aprueba (sin permiso)", "select decide_requisition($1,true,'')", [req], "no puede aprobar");
-await sudo();
-await db.query("update role_permissions set can_edit=true where role_id='almacenero' and module='compras'");
-await as(alm);
 await fails("nadie aprueba su propia solicitud", "select decide_requisition($1,true,'')", [req], "tu propia solicitud");
-await sudo();
-await db.query("update role_permissions set can_edit=false where role_id='almacenero' and module='compras'");
+await as(alm);
+await fails("almacenero no aprueba (sin permiso)", "select decide_requisition($1,true,'')", [req], "no puede aprobar");
 await as(admin2);
 await fails("orden desde solicitud no aprobada", "select create_purchase($1,$2,current_date+3,'x',$3::jsonb,$4)", [sup, branch, poItems, req], "no está aprobada");
 await fails("rechazo exige motivo", "select decide_requisition($1,false,'')", [req], "motivo");
 await db.query("select decide_requisition($1,true,'Conforme')", [req]);
 await fails("solicitud no se decide dos veces", "select decide_requisition($1,true,'')", [req], "ya fue");
+await as(comp);
 const po = (await q("select create_purchase($1,$2,current_date+3,'reposición',$3::jsonb,$4) id", [sup, branch, poItems, req]))[0].id;
+await fails("comprador no recibe mercadería (la recibe el almacén)", "select receive_purchase($1)", [po], "almacén");
+await as(admin2);
 ok("solicitud queda convertida y enlazada a la orden", (await q("select status, purchase_id from purchase_requisitions where id=$1", [req]))[0].purchase_id === po);
 await fails("quien no es almacén no recibe... (admin sí puede todo)", "select receive_purchase($1)", ["00000000-0000-0000-0000-000000000000"], "no encontrada");
 await as(cajero);
@@ -256,7 +262,7 @@ const plog = await q("select summary from audit_log where action like 'pago.%' o
 ok("auditoría del ciclo de compras y pagos", plog.some((l) => l.summary.includes("Aprobó la solicitud de pedido SP001-")) && plog.some((l) => l.summary.includes("Pagó 1,000.00 de la factura F001-77") || l.summary.includes("Pagó 1.000,00 de la factura F001-77")) && plog.some((l) => l.summary.includes("Liberó para pago la factura F009-1")), plog.map((l) => l.summary).slice(0, 2).join(" | "));
 // --- Roles dinámicos y matriz de permisos ---
 const ctx = (await q("select app_context() c"))[0].c;
-ok("app_context: perfil, empresa, sucursales", ctx.profile.role === "admin" && ctx.role_name === "Administrador" && ctx.branches.length === 2 && ctx.settings.name === "Retail Demo");
+ok("app_context: perfil, empresa, sucursales", ctx.profile.role === "admin" && ctx.role_name === "Superadministrador" && ctx.branches.length === 2 && ctx.settings.name === "Retail Demo");
 const supervisor = (await q("select save_role(null, 'Supervisor de Ventas', 'Supervisa cajeros', $1::jsonb) id", [JSON.stringify({ ventas: { view: true, create: true, edit: true, delete: true }, caja: { view: true, create: true, edit: true }, configuracion: { view: true, edit: true } })]))[0].id;
 ok("admin crea rol personalizado", supervisor.startsWith("rol_"));
 await fails("rol admin no se modifica", "select save_role('admin','x','',$1::jsonb)", ["{}"], "acceso total");
@@ -332,13 +338,19 @@ await db.query("select cancel_quotation($1,'El cliente desistió')", [q2]);
 await fails("cotización anulada no se vende", "select create_sale($1,null,'boleta','tarjeta',0,0,null,$2,null)", [branch, q2], "no está vigente");
 await db.query("select close_cash_session($1,$2,'')", [adminSession, Number((await q("select cash_session_expected($1) v", [adminSession]))[0].v)]);
 await sudo();
-await db.query("update profiles set role='cajero' where id=$1", [cajero]);
+await db.query("update profiles set role='vendedor' where id=$1", [cajero]);
 await as(cajero);
-await fails("vendedor no cambia la línea de crédito", "update customers set credit_limit=99999 where id=$1", [cust], "línea de crédito");
-ok("vendedor sí edita otros datos del cliente", (await q("update customers set phone='999888777' where id=$1 returning id", [cust])).length === 1);
+ok("vendedor no edita clientes (solo los registra)", (await q("update customers set phone='999888777' where id=$1 returning id", [cust])).length === 0);
+ok("vendedor no cambia la línea de crédito", (await q("update customers set credit_limit=99999 where id=$1 returning id", [cust])).length === 0);
+await fails("vendedor no abre caja", "select open_cash_session($1, 50)", [branch], "permiso");
 ok("vendedor ve solo sus cotizaciones", (await q("select * from quotations")).length === 0);
 const cst = await q("select * from customer_credit_status() where customer_id=$1", [cust]);
 ok("vendedor ve el crédito del cliente sin ver sus ventas", cst.length === 1 && Number(cst[0].debt) === 0 && (await q("select * from sales where customer_id=$1", [cust])).length === 0, `deuda=${cst[0]?.debt}`);
+await sudo();
+await db.query("update profiles set role='cajero' where id=$1", [cajero]);
+await as(cajero);
+ok("cajero ve las cotizaciones para cobrarlas", (await q("select * from quotations")).length >= 1);
+ok("cajero no edita clientes", (await q("update customers set phone='999888777' where id=$1 returning id", [cust])).length === 0);
 await as(admin);
 await db.query("update profiles set role=$1 where id=$2", [supervisor, cajero]); // lo deja como estaba para las pruebas siguientes
 const clog = await q("select summary from audit_log where action like 'cobro.%' order by id");
@@ -361,7 +373,7 @@ const log = await q("select actor_name, action, summary from audit_log order by 
 const has = (text) => log.some((l) => l.summary.includes(text));
 ok("auditoría: permiso quitado a un rol", has("Quitó al rol «Supervisor de Ventas» el permiso Eliminar en Ventas"), log.find((l) => l.action === "rol.permiso")?.summary);
 ok("auditoría: creación de rol", has("Creó el rol «Supervisor de Ventas»"));
-ok("auditoría: cambio de rol de usuario", has("Cambió el rol de cajero: de Vendedor a Supervisor de Ventas"), log.find((l) => l.action === "usuario.rol")?.summary);
+ok("auditoría: cambio de rol de usuario", has("Cambió el rol de cajero: de Cajero a Supervisor de Ventas"), log.find((l) => l.action === "usuario.rol")?.summary);
 ok("auditoría: cuenta desactivada con su autor", log.some((l) => l.action === "usuario.acceso" && l.actor_name === "admin2"), log.find((l) => l.action === "usuario.acceso")?.summary);
 ok("auditoría: nivel super concedido y retirado", has("Concedió el nivel Super Administrador a admin2") && has("Retiró el nivel Super Administrador a admin2"));
 ok("auditoría: venta anulada con motivo", has("Motivo: error de digitación"), log.find((l) => l.action === "venta.anulacion")?.summary);
@@ -503,6 +515,123 @@ await fails("nadie escribe lotes directo", "update lots set quantity=999", [], "
 await as(admin);
 await sudo();
 ok("lotes = stock en todas las sucursales", (await q("select s.branch_id from stock s join products p on p.id=s.product_id where p.track_lots and s.quantity <> (select coalesce(sum(quantity),0) from lots l where l.product_id=s.product_id and l.branch_id=s.branch_id)")).length === 0);
+
+// --- Roles (0009): mínimo privilegio y separación por módulo ---
+await sudo();
+const roleIds = (await q("select id from roles")).map((r) => r.id);
+ok("existen los roles del sistema", ["admin", "gerente", "gerente_area", "contador", "rrhh", "vendedor", "almacenero", "comprador", "cajero", "auditor", "empleado"].every((r) => roleIds.includes(r)));
+const empUser = await mk("empleado@erp.test");
+const empProfile = (await q("select role, active from profiles where id=$1", [empUser]))[0];
+ok("alta sin rol nace como Empleado y sin acceso", empProfile.role === "empleado" && empProfile.active === false);
+await grant(empUser, "empleado");
+await as(empUser);
+ok("empleado no ve ventas, kardex, proveedores ni fichas ajenas",
+  (await q("select * from sales")).length === 0 && (await q("select * from stock_movements")).length === 0 &&
+  (await q("select * from suppliers")).length === 0 && (await q("select * from employees")).length === 0);
+await fails("empleado no crea clientes", "insert into customers (doc_type, doc_number, name) values ('DNI','11112222','X')", [], "row-level security");
+
+await sudo();
+const audUser = await mk("auditor@erp.test");
+await grant(audUser, "auditor");
+await as(audUser);
+ok("auditor consulta ventas, compras, asientos y auditoría",
+  (await q("select * from sales")).length > 0 && (await q("select * from purchases")).length > 0 &&
+  (await q("select * from journal_entries")).length > 0 && (await q("select * from audit_log")).length > 0);
+await fails("auditor no registra gastos", "insert into expenses (branch_id, category, description, amount, payment_method, expense_date) values ($1,'otros','x',1,'efectivo',current_date)", [branch], "row-level security");
+await fails("auditor no ajusta stock", "select adjust_stock($1,$2,1,'x')", [prods[0].id, branch], "permiso");
+await fails("auditor no anula ventas", "select void_sale($1,'prueba de auditor')", [saleId], "anular");
+
+await sudo();
+const contUser = await mk("contador@erp.test");
+await grant(contUser, "contador");
+await as(contUser);
+ok("contador ve las órdenes y proveedores para registrar facturas (sin ser de Compras)", (await q("select * from purchases")).length > 0 && (await q("select * from suppliers")).length > 0);
+ok("contador no ve el kardex de almacén", (await q("select * from stock_movements")).length === 0);
+await fails("contador no crea solicitudes de pedido", "select create_requisition($1,'x',$2::jsonb)", [branch, JSON.stringify([{ product_id: prods[0].id, quantity: 1 }])], "no puede crear");
+
+// --- Vendedor cotiza, cajero cobra: la comisión es del vendedor ---
+await sudo();
+const vend = await mk("vendedor@erp.test");
+await grant(vend, "vendedor");
+const vendEmp = (await q("insert into employees (doc_number, full_name, position, salary, branch_id, profile_id, commission_rate) values ('70000001','Vendedora Uno','Vendedora',1200,$1,$2,3) returning id", [branch, vend]))[0].id;
+await as(vend);
+const vQuote = (await q("select create_quotation($1,null,5,0,'',$2::jsonb) id", [branch, JSON.stringify([{ product_id: prods[1].id, quantity: 2 }])]))[0].id;
+const vQuoteTotal = Number((await q("select total from quotations where id=$1", [vQuote]))[0].total);
+await fails("vendedor no cobra (no tiene caja)", "select create_sale($1,null,'boleta','efectivo',$3,0,null,$2,null)", [branch, vQuote, vQuoteTotal], "abrir caja");
+await sudo();
+await db.query("update profiles set role='cajero' where id=$1", [cajero]);
+await as(cajero);
+const cSession = (await q("select open_cash_session($1, 50) id", [branch]))[0].id;
+const vSale = (await q("select create_sale($1,null,'boleta','efectivo',$3,0,null,$2,null) id", [branch, vQuote, vQuoteTotal]))[0].id;
+const vSaleRow = (await q("select cashier_id, seller_id, subtotal from sales where id=$1", [vSale]))[0];
+ok("venta desde cotización: cobra el cajero, vende el vendedor", vSaleRow.cashier_id === cajero && vSaleRow.seller_id === vend);
+await db.query("select close_cash_session($1,$2,'')", [cSession, Number((await q("select cash_session_expected($1) v", [cSession]))[0].v)]);
+await sudo();
+const vCom = (await q("select employee_id, amount from commissions where sale_id=$1", [vSale]))[0];
+ok("la comisión es del vendedor que cotizó", vCom?.employee_id === vendEmp && Number(vCom.amount) === Math.round(Number(vSaleRow.subtotal) * 3) / 100, JSON.stringify(vCom));
+await as(vend);
+ok("el vendedor ve su venta cobrada en caja", (await q("select id from sales where id=$1", [vSale])).length === 1);
+
+// --- Planilla: sueldo + comisiones, con asiento ---
+const period = (await q("select to_char((now() at time zone 'America/Lima')::date, 'YYYY-MM') p"))[0].p;
+const payDay = (await q("select (now() at time zone 'America/Lima')::date::text d"))[0].d;
+await fails("vendedor no paga planilla", "select pay_payroll($1,$2::uuid[],'transferencia',$3::date)", [period, [vendEmp], payDay], "no puede pagar");
+await sudo();
+const hrUser = await mk("rrhh@erp.test");
+await grant(hrUser, "rrhh");
+await as(hrUser);
+await fails("planilla: fecha futura", "select pay_payroll($1,$2::uuid[],'transferencia',($3::date + 3))", [period, [vendEmp], payDay], "futura");
+const vComTotal = Number((await q("select coalesce(sum(amount),0) v from commissions where employee_id=$1 and status='generada'", [vendEmp]))[0].v);
+ok("planilla: paga a un colaborador", (await q("select pay_payroll($1,$2::uuid[],'transferencia',$3::date,'Planilla del mes') n", [period, [vendEmp], payDay]))[0].n === 1);
+const pay = (await q("select * from payroll_payments where employee_id=$1 and status='pagado'", [vendEmp]))[0];
+ok("planilla: sueldo + comisiones del mes", Number(pay.salary) === 1200 && Number(pay.commissions) === vComTotal && Number(pay.total) === 1200 + vComTotal && pay.number.startsWith("PL001-"), `${pay.number} total=${pay.total}`);
+ok("planilla: las comisiones quedan pagadas", (await q("select count(*) c from commissions where employee_id=$1 and payroll_id=$2", [vendEmp, pay.id]))[0].c > 0);
+await fails("planilla: no se paga dos veces el mismo mes", "select pay_payroll($1,$2::uuid[],'efectivo',$3::date)", [period, [vendEmp], payDay], "ya está pagada");
+await sudo();
+const pEntry = await q("select l.account_code, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_type='planilla' and e.source_id=$1", [pay.id]);
+const pd = (acc) => pEntry.filter((l) => l.account_code === acc).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
+ok("planilla: asiento sueldo (6211) + comisiones (4111) contra bancos (1041)", pd("6211") === 1200 && Math.abs(pd("4111") - vComTotal) < 0.001 && Math.abs(pd("1041") + 1200 + vComTotal) < 0.001, JSON.stringify(pEntry));
+await as(vend);
+ok("mis datos: el colaborador ve su ficha y su pago", (await q("select id from employees")).map((e) => e.id).join() === vendEmp && (await q("select id from payroll_payments")).length === 1);
+await as(empUser);
+ok("mis datos: nadie ve pagos ajenos", (await q("select id from payroll_payments")).length === 0);
+await as(hrUser);
+await fails("anular pago exige motivo", "select void_payroll_payment($1,'')", [pay.id], "motivo");
+await db.query("select void_payroll_payment($1,'Monto equivocado')", [pay.id]);
+ok("anular pago: libera las comisiones y extorna el asiento",
+  (await q("select count(*) c from commissions where payroll_id=$1", [pay.id]))[0].c == 0 &&
+  (await q("select count(*) c from payroll_payments where id=$1 and status='anulado'", [pay.id]))[0].c == 1);
+ok("tras anular se puede volver a pagar", (await q("select pay_payroll($1,$2::uuid[],'efectivo',$3::date) n", [period, [vendEmp], payDay]))[0].n === 1);
+
+// --- Compras: pedido por empaque, centro de costo y plazo del proveedor ---
+await as(comp);
+ok("proveedor con plazo de crédito de 30 días por defecto", Number((await q("select payment_terms from suppliers where id=$1", [sup]))[0].payment_terms) === 30);
+const ccLog = (await q("select id from cost_centers where code='LOG'"))[0].id;
+const packReq = (await q("select create_requisition($1,'Por cajas',$2::jsonb,$3) id", [branch, JSON.stringify([{ product_id: prods[0].id, quantity: 24, pack_unit: "caja", pack_size: 12 }, { product_id: prods[1].id, quantity: 5 }]), ccLog]))[0].id;
+const packItems = await q("select product_id, quantity, pack_unit, pack_size from purchase_requisition_items where requisition_id=$1 order by quantity desc", [packReq]);
+ok("solicitud por cajas: guarda empaque y cantidad en unidades", packItems[0].pack_unit === "CAJA" && Number(packItems[0].pack_size) === 12 && Number(packItems[0].quantity) === 24 && packItems[1].pack_unit === "" && Number(packItems[1].pack_size) === 1);
+ok("solicitud con centro de costo", (await q("select cost_center_id from purchase_requisitions where id=$1", [packReq]))[0].cost_center_id === ccLog);
+await fails("empaque inválido", "select create_requisition($1,'x',$2::jsonb)", [branch, JSON.stringify([{ product_id: prods[0].id, quantity: 5, pack_unit: "caja", pack_size: 0 }])], "Empaque inválido");
+await as(admin2);
+await db.query("select decide_requisition($1,true,'Conforme')", [packReq]);
+await as(comp);
+const packPo = (await q("select create_purchase($1,$2,current_date+3,'',$3::jsonb,$4) id", [sup, branch, JSON.stringify([{ product_id: prods[0].id, quantity: 24, unit_cost: 2.5, pack_unit: "CAJA", pack_size: 12 }]), packReq]))[0].id;
+const packPoRow = (await q("select cost_center_id, subtotal from purchases where id=$1", [packPo]))[0];
+ok("la orden hereda el centro de costo de la solicitud", packPoRow.cost_center_id === ccLog && Number(packPoRow.subtotal) === 60);
+
+// --- Líneas de crédito: control de crédito sin editar los demás datos del cliente ---
+await as(contUser);
+const crCust = (await q("select id from customers where doc_number='20481234567'"))[0].id;
+ok("contador no edita datos del cliente", (await q("update customers set phone='000' where id=$1 returning id", [crCust])).length === 0);
+await db.query("select set_customer_credit($1, 1500, 45)", [crCust]);
+const crRow = (await q("select credit_limit, credit_days from customers where id=$1", [crCust]))[0];
+ok("contador asigna la línea de crédito", Number(crRow.credit_limit) === 1500 && Number(crRow.credit_days) === 45);
+await fails("plazo de crédito inválido", "select set_customer_credit($1, 100, 400)", [crCust], "Plazo inválido");
+await as(vend);
+await fails("vendedor no asigna crédito", "select set_customer_credit($1, 99999, 30)", [crCust], "no puede modificar la línea");
+await sudo();
+ok("el cambio de línea queda en la auditoría", (await q("select count(*) c from audit_log where action='cobro.credito' and summary like '%a 1,500.00%'"))[0].c > 0);
+
 ok("final: todos los asientos cuadran", (await q("select entry_id from journal_lines group by entry_id having sum(debit) <> sum(credit)")).length === 0);
 const drift2 = await q(`select count(*) c from stock s where quantity <> (select sum(quantity) from stock_movements m where m.product_id=s.product_id and m.branch_id=s.branch_id)`);
 ok("final: stock = suma de kardex", Number(drift2[0].c) === 0);

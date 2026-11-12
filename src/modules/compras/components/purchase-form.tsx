@@ -9,31 +9,54 @@ import { createPurchase } from "@/modules/compras/actions";
 import { useApp } from "@/components/app-provider";
 import { Badge, Button, Card, CardHeader, EmptyState, Field, FormError, Input, Select, Table, Td, Textarea, Th } from "@/components/ui";
 import { formatQty, round2 } from "@/lib/utils";
+import { baseQuantity, initialPack, PackPicker, type PackLine } from "./pack";
 
-export type PurchaseProduct = { product_id: string; sku: string; name: string; unit: string; cost: number; quantity: number; min_stock: number };
-type Line = { product_id: string; quantity: string; unit_cost: string };
+export type PurchaseProduct = {
+  product_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  cost: number;
+  quantity: number;
+  min_stock: number;
+  pack_unit?: string | null;
+  pack_size?: number | null;
+};
+/** quantity y unit_cost van en la presentación elegida (ej. cajas y costo por caja) */
+type Line = PackLine & { product_id: string; unit_cost: string };
+type Option = { value: string; label: string };
+
+const sizeOf = (l: Pick<PackLine, "pack_unit" | "pack_size">) => (l.pack_unit ? Number(l.pack_size) || 1 : 1);
 
 export function PurchaseForm({
   suppliers,
   products,
+  costCenters,
   requisition,
 }: {
-  suppliers: { value: string; label: string }[];
+  suppliers: Option[];
   products: PurchaseProduct[];
+  costCenters: Option[];
   /** Solicitud de pedido aprobada de la que nace la orden */
-  requisition?: { id: string; number: string; items: { product_id: string; quantity: number }[] };
+  requisition?: { id: string; number: string; cost_center_id: string | null; items: { product_id: string; quantity: number; pack_unit: string; pack_size: number }[] };
 }) {
   const { money, settings } = useApp();
   const router = useRouter();
   const [supplierId, setSupplierId] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
   const [note, setNote] = useState("");
+  const [costCenter, setCostCenter] = useState(requisition?.cost_center_id ?? "");
   const [lines, setLines] = useState<Line[]>(() =>
-    (requisition?.items ?? []).map((i) => ({
-      product_id: i.product_id,
-      quantity: String(Number(i.quantity)),
-      unit_cost: Number(products.find((p) => p.product_id === i.product_id)?.cost ?? 0).toFixed(2),
-    })),
+    (requisition?.items ?? []).map((i) => {
+      const size = i.pack_unit ? Number(i.pack_size) || 1 : 1;
+      return {
+        product_id: i.product_id,
+        pack_unit: i.pack_unit,
+        pack_size: String(size),
+        quantity: String(round2(Number(i.quantity) / size)),
+        unit_cost: (Number(products.find((p) => p.product_id === i.product_id)?.cost ?? 0) * size).toFixed(2),
+      };
+    }),
   );
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +73,11 @@ export function PurchaseForm({
 
   const lowStock = products.filter((p) => Number(p.quantity) <= Number(p.min_stock) && !chosen.has(p.product_id));
 
-  const addLine = (p: PurchaseProduct, quantity = "1") => {
+  const addLine = (p: PurchaseProduct, units = 1) => {
     if (chosen.has(p.product_id)) return;
-    setLines((prev) => [...prev, { product_id: p.product_id, quantity, unit_cost: Number(p.cost).toFixed(2) }]);
+    const pack = initialPack(p);
+    const size = sizeOf(pack);
+    setLines((prev) => [...prev, { product_id: p.product_id, ...pack, quantity: String(Math.max(1, Math.ceil(units / size))), unit_cost: (Number(p.cost) * size).toFixed(2) }]);
     setQuery("");
   };
 
@@ -71,7 +96,15 @@ export function PurchaseForm({
         expected_date: expectedDate,
         note,
         requisition_id: requisition?.id ?? null,
-        items: lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity), unit_cost: Number(l.unit_cost) })),
+        cost_center_id: costCenter || null,
+        // El stock y el costo promedio se llevan en unidades base
+        items: lines.map((l) => ({
+          product_id: l.product_id,
+          quantity: baseQuantity(l),
+          unit_cost: (Number(l.unit_cost) || 0) / sizeOf(l),
+          pack_unit: l.pack_unit,
+          pack_size: sizeOf(l),
+        })),
       });
       if (!res.ok) return setError(res.error);
       toast.success("Orden de compra registrada");
@@ -137,8 +170,9 @@ export function PurchaseForm({
             <thead>
               <tr>
                 <Th>Producto</Th>
-                <Th className="w-28 text-right">Cantidad</Th>
-                <Th className="w-32 text-right">Costo unit.</Th>
+                <Th>Presentación</Th>
+                <Th className="w-24 text-right">Cantidad</Th>
+                <Th className="w-28 text-right">Costo por presentación</Th>
                 <Th className="text-right">Importe</Th>
                 <Th className="w-px" />
               </tr>
@@ -153,6 +187,18 @@ export function PurchaseForm({
                       <p className="tabular text-xs text-slate-500">
                         {p?.sku} · stock actual {formatQty(p?.quantity)} {p?.unit}
                       </p>
+                    </Td>
+                    <Td>
+                      <PackPicker
+                        line={l}
+                        product={p}
+                        label={p?.name ?? ""}
+                        onChange={(change) => {
+                          // Al cambiar de presentación, el costo se recalcula desde el costo por unidad
+                          const next = { ...l, ...change };
+                          update(l.product_id, { ...change, unit_cost: ((Number(l.unit_cost) / sizeOf(l)) * sizeOf(next)).toFixed(2) });
+                        }}
+                      />
                     </Td>
                     <Td>
                       <Input type="number" min={0.001} step="0.001" inputMode="decimal" value={l.quantity} onChange={(e) => update(l.product_id, { quantity: e.target.value })} aria-label={`Cantidad de ${p?.name}`} className="tabular text-right" />
@@ -181,7 +227,7 @@ export function PurchaseForm({
                 <button
                   key={p.product_id}
                   type="button"
-                  onClick={() => addLine(p, String(Math.max(Math.ceil(Number(p.min_stock) * 2 - Number(p.quantity)), 1)))}
+                  onClick={() => addLine(p, Math.max(Math.ceil(Number(p.min_stock) * 2 - Number(p.quantity)), 1))}
                   className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 py-1 pl-3 pr-1.5 text-xs text-slate-700 hover:bg-slate-50"
                 >
                   {p.name}
@@ -214,6 +260,16 @@ export function PurchaseForm({
               .
             </p>
           )}
+          <Field label="Centro de costo" hint={requisition ? "Heredado de la solicitud; puedes cambiarlo." : "Área para la que se compra."}>
+            <Select value={costCenter} onChange={(e) => setCostCenter(e.target.value)}>
+              <option value="">— Sin asignar —</option>
+              {costCenters.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label="Entrega estimada">
             <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} />
           </Field>

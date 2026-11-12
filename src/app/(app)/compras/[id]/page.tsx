@@ -7,7 +7,7 @@ import { Badge, buttonClass, Card, CardHeader, EmptyState, PageHeader, Table, Td
 import { requireAccess } from "@/lib/auth";
 import { INVOICE_STATUS } from "@/modules/cuentas-pagar/types";
 import { PAYMENT_LABELS } from "@/lib/types";
-import { PURCHASE_STATUS } from "@/modules/compras/types";
+import { PURCHASE_STATUS, packLabel } from "@/modules/compras/types";
 import { formatDate, formatDateTime, formatMoney, formatQty, todayIn } from "@/lib/utils";
 import { PurchaseActions } from "@/modules/compras/components/purchase-actions";
 import { PayInvoiceButton, RegisterInvoiceButton, ReleaseInvoiceButton, VoidInvoiceButton } from "@/modules/cuentas-pagar/components/invoice-actions";
@@ -38,11 +38,11 @@ type Detail = {
   received_at: string | null;
   note: string;
   created_at: string;
-  supplier: { name: string; tax_id: string; phone: string } | null;
+  supplier: { name: string; tax_id: string; phone: string; payment_terms: number } | null;
   branch: { name: string } | null;
   creator: { full_name: string } | null;
   requisition: { id: string; number: string; decided_at: string | null } | null;
-  items: { id: string; product_id: string; quantity: number; unit_cost: number; total: number; product: { name: string; sku: string; unit: string; track_lots: boolean } | null }[];
+  items: { id: string; product_id: string; quantity: number; unit_cost: number; total: number; pack_unit: string; pack_size: number; product: { name: string; sku: string; unit: string; track_lots: boolean } | null }[];
   invoices: Invoice[];
 };
 
@@ -56,7 +56,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/compras
   const { data } = await supabase
     .from("purchases")
     .select(
-      "*, supplier:suppliers(name, tax_id, phone), branch:branches(name), creator:profiles(full_name), requisition:purchase_requisitions!purchases_requisition_id_fkey(id, number, decided_at), items:purchase_items(id, product_id, quantity, unit_cost, total, lot_number, expiry_date, product:products(name, sku, unit, track_lots)), invoices:supplier_invoices(id, number, status, issue_date, due_date, total, paid, difference, note, payments:supplier_payments(id, amount, method, paid_at, reference))",
+      "*, supplier:suppliers(name, tax_id, phone, payment_terms), branch:branches(name), creator:profiles(full_name), requisition:purchase_requisitions!purchases_requisition_id_fkey(id, number, decided_at), items:purchase_items(id, product_id, quantity, unit_cost, total, pack_unit, pack_size, lot_number, expiry_date, product:products(name, sku, unit, track_lots)), invoices:supplier_invoices(id, number, status, issue_date, due_date, total, paid, difference, note, payments:supplier_payments(id, amount, method, paid_at, reference))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -108,7 +108,7 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/compras
             today={today}
           />
         )}
-        {received && !invoice && can("cuentas_pagar", "create") && <RegisterInvoiceButton purchaseId={po.id} orderTotal={Number(po.total)} today={today} />}
+        {received && !invoice && can("cuentas_pagar", "create") && <RegisterInvoiceButton purchaseId={po.id} orderTotal={Number(po.total)} today={today} paymentTerms={Number(po.supplier?.payment_terms ?? 30)} />}
       </PageHeader>
 
       <div className="mb-6">
@@ -137,6 +137,9 @@ export default async function PurchaseDetailPage({ params }: PageProps<"/compras
                     </Td>
                     <Td className="tabular text-right">
                       {formatQty(i.quantity)} <span className="text-xs text-slate-500">{i.product?.unit}</span>
+                      {packLabel(i.quantity, i.product?.unit ?? "", i.pack_unit, i.pack_size) && (
+                        <span className="block text-[11px] text-slate-500">{packLabel(i.quantity, i.product?.unit ?? "", i.pack_unit, i.pack_size)}</span>
+                      )}
                     </Td>
                     <Td className="tabular text-right">{money(i.unit_cost)}</Td>
                     <Td className="tabular text-right font-medium text-slate-900">{money(i.total)}</Td>

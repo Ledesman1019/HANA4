@@ -69,3 +69,35 @@ export async function transferStock(productId: string, toBranchId: string, amoun
   revalidatePath("/", "layout");
   return success(undefined);
 }
+
+const countSchema = z.object({
+  note: z.string().trim().min(3, "Indica una referencia del conteo (ej. «Conteo mensual de abarrotes»)").max(150),
+  items: z.array(z.object({ id: uuid, quantity: z.coerce.number<number>().min(0, "La cantidad no puede ser negativa").max(9_999_999) })).min(1, "No hay diferencias que ajustar").max(1000),
+});
+
+/**
+ * Inventario físico: registra el conteo real. Cada diferencia es un ajuste en el kardex
+ * con la misma referencia, para revisarlo después en «Ajustes (histórico)».
+ */
+export async function registerPhysicalCount(input: z.input<typeof countSchema>): Promise<ActionResult<{ adjusted: number }>> {
+  const parsed = countSchema.safeParse(input);
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const { supabase, branch, can } = await getContext();
+  if (!can("inventario", "edit")) return fail("Tu rol no puede ajustar el inventario");
+  let adjusted = 0;
+  for (const item of parsed.data.items) {
+    const { error } = await supabase.rpc("adjust_stock", {
+      p_product: item.id,
+      p_branch: branch.id,
+      p_new_quantity: item.quantity,
+      p_note: `Inventario físico: ${parsed.data.note}`,
+    });
+    if (error) {
+      revalidatePath("/", "layout");
+      return fail(`${adjusted} ajustes registrados; se detuvo en un producto: ${friendlyError(error)}`);
+    }
+    adjusted++;
+  }
+  revalidatePath("/", "layout");
+  return success({ adjusted });
+}

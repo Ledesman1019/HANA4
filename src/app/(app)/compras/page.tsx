@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Plus } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
-import { buildQuery, Pagination, param } from "@/components/filters";
-import { Badge, buttonClass, Card, EmptyState, PageHeader, Table, Td, Th } from "@/components/ui";
+import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
+import { Badge, buttonClass, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { INVOICE_STATUS } from "@/modules/cuentas-pagar/types";
 import { PURCHASE_STATUS } from "@/modules/compras/types";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/utils";
-import { PurchasingTabs } from "@/modules/compras/components/purchasing-tabs";
 
-export const metadata: Metadata = { title: "Compras" };
+export const metadata: Metadata = { title: "Órdenes de compra" };
 
 const PAGE_SIZE = 25;
 
@@ -30,6 +29,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/compra
   const { supabase, settings, branch, can } = await requireAccess("compras", "view");
   const sp = await searchParams;
   const page = Math.max(1, Number.parseInt(param(sp.pagina), 10) || 1);
+  const status = Object.hasOwn(PURCHASE_STATUS, param(sp.estado)) ? param(sp.estado) : "";
+  const q = param(sp.q).trim().slice(0, 30).replace(/[%_\,()]/g, "");
 
   const { data, count } = await supabase
     .from("purchases")
@@ -37,18 +38,23 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/compra
       count: "exact",
     })
     .eq("branch_id", branch.id)
+    .match(status ? { status } : {})
+    .ilike("number", `%${q}%`)
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   const rows = (data ?? []) as unknown as Row[];
 
   return (
     <>
-      <PageHeader title="Compras" description={`Ciclo de aprovisionamiento de ${branch.name}: solicitud, aprobación, orden, recepción, factura y pago.`}>
+      <PageHeader
+        title={status === "ordenada" ? "Recepción de mercadería" : "Órdenes de compra"}
+        description={status === "ordenada" ? `Órdenes de ${branch.name} pendientes de recibir en almacén.` : `Órdenes de compra de ${branch.name}: recepción y facturación de cada una.`}
+      >
         <ExportMenu
           title="Órdenes de compra"
           subtitle={branch.name}
           filename="compras"
-          source="/api/export/compras"
+          source={`/api/export/compras${buildQuery({ estado: status, q })}`}
           columns={[
             { key: "numero", header: "Orden" },
             { key: "proveedor", header: "Proveedor" },
@@ -68,9 +74,22 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/compra
           </Link>
         )}
       </PageHeader>
-      <PurchasingTabs />
-
       <Card>
+        <FilterBar action="/compras">
+          <Field label="Estado">
+            <Select name="estado" defaultValue={status}>
+              <option value="">Todos</option>
+              {Object.entries(PURCHASE_STATUS).map(([key, s]) => (
+                <option key={key} value={key}>
+                  {s.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="N.º de orden">
+            <Input type="search" name="q" defaultValue={q} placeholder="OC001-00000012" />
+          </Field>
+        </FilterBar>
         {rows.length === 0 ? (
           <EmptyState
             icon={<ClipboardList className="h-5 w-5" />}
@@ -123,7 +142,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/compra
             </tbody>
           </Table>
         )}
-        <Pagination page={page} pageSize={PAGE_SIZE} total={count ?? 0} hrefFor={(p) => `/compras${buildQuery({ pagina: p })}`} />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={count ?? 0} hrefFor={(p) => `/compras${buildQuery({ estado: status, q, pagina: p })}`} />
       </Card>
     </>
   );

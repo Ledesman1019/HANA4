@@ -8,5 +8,7 @@ export type Supplier = {
   email: string;
   phone: string;
   address: string;
+  /** Días de crédito que da el proveedor (vencimiento de sus facturas) */
+  payment_terms: number;
   active: boolean;
 };

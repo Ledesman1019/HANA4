@@ -472,7 +472,16 @@ export function PosClient({ products, customers, today }: { products: PosProduct
               {!customer ? (
                 <p className="text-sm text-slate-600">Elige arriba el cliente. Solo se vende al crédito a clientes con línea asignada.</p>
               ) : Number(customer.credit_limit) <= 0 ? (
-                <p className="text-sm text-red-600">{customer.name} no tiene línea de crédito. Cobra al contado o solicita que se la asignen.</p>
+                <p className="text-sm text-red-600">
+                  {customer.name} no tiene línea de crédito.{" "}
+                  {can("cuentas_cobrar", "edit") ? (
+                    <Link href={`/cuentas-por-cobrar/lineas?q=${encodeURIComponent(customer.doc_number)}`} className="font-semibold underline">
+                      Asignar línea de crédito
+                    </Link>
+                  ) : (
+                    "Cobra al contado o pide a Cuentas por cobrar que se la asigne."
+                  )}
+                </p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <dl className="tabular space-y-1 text-sm text-slate-600">

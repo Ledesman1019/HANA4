@@ -32,6 +32,17 @@ export function BranchesView({ rows }: { rows: Branch[] }) {
       getId={(b) => b.id}
       searchText={(b) => `${b.code} ${b.name} ${b.address}`}
       isActive={(b) => b.active}
+      exportable={{
+        title: "Sucursales",
+        filename: "sucursales",
+        columns: [
+          { header: "Código", value: (b) => b.code },
+          { header: "Sucursal", value: (b) => b.name },
+          { header: "Dirección", value: (b) => b.address },
+          { header: "Teléfono", value: (b) => b.phone },
+          { header: "Estado", value: (b) => (b.active ? "Activa" : "Inactiva") },
+        ],
+      }}
     />
   );
 }

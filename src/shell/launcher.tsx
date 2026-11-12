@@ -33,7 +33,7 @@ export function Launcher({ moduleKey, areaKey }: { moduleKey?: string; areaKey?:
             </Link>
             <div className="mx-auto flex max-w-[1480px] flex-wrap justify-center gap-2.5">
               {area.tiles.map((tile) => (
-                <FunctionTile key={tile.href} tile={tile} caption={area.label} />
+                <FunctionTile key={tile.label} tile={tile} caption={area.label} />
               ))}
             </div>
           </>

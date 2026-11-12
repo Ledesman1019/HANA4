@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { buildQuery, FilterBar, Pagination, param } from "@/components/filters";
-import { Badge, buttonClass, Card, EmptyState, Field, PageHeader, Select, Table, Td, Th } from "@/components/ui";
+import { ExportMenu } from "@/components/export-menu";
+import { Badge, buttonClass, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, Th } from "@/components/ui";
 import { requireAccess } from "@/lib/auth";
 import { QUOTE_STATUS } from "@/modules/ventas/types";
 import { formatDate, formatDateTime, formatMoney, todayIn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Cotizaciones" };
+export const metadata: Metadata = { title: "Órdenes de venta" };
 
 const PAGE_SIZE = 25;
 
@@ -19,11 +20,13 @@ export default async function QuotationsPage({ searchParams }: PageProps<"/cotiz
   const today = todayIn(settings.timezone);
   const status = Object.hasOwn(QUOTE_STATUS, param(sp.estado)) ? param(sp.estado) : "";
   const page = Math.max(1, Number.parseInt(param(sp.pagina), 10) || 1);
+  const q = param(sp.q).trim().slice(0, 30).replace(/[%_\,()]/g, "");
 
   let query = supabase
     .from("quotations")
     .select("id, number, status, total, valid_until, created_at, customer:customers(name), creator:profiles!quotations_created_by_fkey(full_name)", { count: "exact" })
     .eq("branch_id", branch.id)
+    .ilike("number", `%${q}%`)
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   // "Vencida" no se guarda: es una vigente cuya fecha ya pasó
@@ -37,7 +40,29 @@ export default async function QuotationsPage({ searchParams }: PageProps<"/cotiz
 
   return (
     <>
-      <PageHeader title="Cotizaciones" description={`Ofertas a clientes de ${branch.name}. El precio queda congelado durante la vigencia y se convierten en venta con un clic.`}>
+      <PageHeader
+        title={status === "vigente" ? "Órdenes de venta por cobrar" : "Órdenes de venta (cotizaciones)"}
+        description={
+          status === "vigente"
+            ? "Cotizaciones vigentes: ábrelas y conviértelas en venta para cobrarlas en tu caja."
+            : `Ofertas a clientes de ${branch.name}. El precio queda congelado durante la vigencia.`
+        }
+      >
+        <ExportMenu
+          title="Órdenes de venta"
+          subtitle={branch.name}
+          filename="ordenes-de-venta"
+          source={`/api/export/cotizaciones${buildQuery({ estado: status })}`}
+          columns={[
+            { key: "numero", header: "Cotización" },
+            { key: "fecha", header: "Fecha" },
+            { key: "cliente", header: "Cliente" },
+            { key: "vendedor", header: "Vendedor" },
+            { key: "vigencia", header: "Vigente hasta", type: "date" },
+            { key: "estado", header: "Estado" },
+            { key: "total", header: "Total", type: "money", total: true },
+          ]}
+        />
         {can("ventas", "create") && (
           <Link href="/cotizaciones/nueva" className={buttonClass("primary")}>
             <Plus className="h-4 w-4" />
@@ -56,6 +81,9 @@ export default async function QuotationsPage({ searchParams }: PageProps<"/cotiz
                 </option>
               ))}
             </Select>
+          </Field>
+          <Field label="N.º de cotización">
+            <Input type="search" name="q" defaultValue={q} placeholder="CT001-00000003" />
           </Field>
         </FilterBar>
         {rows.length === 0 ? (
@@ -93,7 +121,7 @@ export default async function QuotationsPage({ searchParams }: PageProps<"/cotiz
             </tbody>
           </Table>
         )}
-        <Pagination page={page} pageSize={PAGE_SIZE} total={count ?? 0} hrefFor={(p) => `/cotizaciones${buildQuery({ estado: status, pagina: p })}`} />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={count ?? 0} hrefFor={(p) => `/cotizaciones${buildQuery({ estado: status, q, pagina: p })}`} />
       </Card>
     </>
   );

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node tests/db/reglas-negocio.test.mjs",
+    "test": "node tests/db/reglas-negocio.test.mjs && node tests/menu/menu-por-rol.test.mjs",
     "test:e2e": "node tests/e2e/rutas.mjs && node tests/e2e/interfaz.mjs",
     "check": "npm run lint && npm run typecheck && npm test"
   },

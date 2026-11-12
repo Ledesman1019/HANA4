@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Check, Lock, Minus, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogFooter } from "@/components/dialog";
+import { ExportMenu } from "@/components/export-menu";
 import { Badge, Button, Card, Field, FormError, Input } from "@/components/ui";
 import { ACTIONS, MODULES, type Action, type ModuleKey, type Permissions } from "@/lib/modules";
 import type { RoleRow } from "@/lib/types";
@@ -95,6 +96,24 @@ export function RolesView({ roles, ownRole, canEdit }: { roles: RoleWithPermissi
     <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
       {/* Lista de roles */}
       <div className="space-y-2">
+        <ExportMenu
+          title="Matriz de roles y permisos"
+          filename="roles-y-permisos"
+          label="Exportar matriz"
+          align="left"
+          columns={[
+            { key: "rol", header: "Rol" },
+            { key: "modulo", header: "Módulo" },
+            ...ACTIONS.map((a) => ({ key: a.key, header: a.label })),
+          ]}
+          rows={roles.flatMap((r) =>
+            MODULES.map((m) => ({
+              rol: r.name,
+              modulo: m.label,
+              ...Object.fromEntries(ACTIONS.map((a) => [a.key, m.actions[a.key] ? (r.id === "admin" || r.permissions[m.key]?.[a.key] ? "Sí" : "—") : ""])),
+            })),
+          )}
+        />
         <ul className="space-y-1.5">
           {roles.map((r) => {
             const count = r.id === "admin" ? total : granted(drafts[r.id]?.permissions ?? r.permissions);

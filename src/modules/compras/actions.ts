@@ -6,14 +6,24 @@ import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
 import { amount, firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
 
+/** Presentación de compra: "" = unidad base; si no, CAJA, PAQUETE… con sus unidades por empaque. */
+const packUnit = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^([A-Z]{2,12})?$/, "Presentación inválida")
+  .default("");
+const packSize = z.coerce.number<number>("Unidades por empaque inválidas").min(1, "Cada empaque debe tener al menos 1 unidad").max(100_000).default(1);
+
 const purchaseSchema = z.object({
   supplier_id: z.uuid("Selecciona un proveedor"),
   expected_date: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")]),
   note: z.string().trim().max(300),
   /** Solicitud de pedido aprobada que origina la orden (opcional: compra directa) */
   requisition_id: uuid.nullable().optional(),
+  cost_center_id: uuid.nullable().optional(),
   items: z
-    .array(z.object({ product_id: uuid, quantity, unit_cost: amount }))
+    .array(z.object({ product_id: uuid, quantity, unit_cost: amount, pack_unit: packUnit, pack_size: packSize }))
     .min(1, "Agrega al menos un producto")
     .max(200),
 });
@@ -32,6 +42,7 @@ export async function createPurchase(input: z.input<typeof purchaseSchema>): Pro
     p_note: p.note,
     p_items: p.items,
     p_requisition: p.requisition_id ?? null,
+    p_cost_center: p.cost_center_id ?? null,
   });
   if (error) return fail(friendlyError(error));
   revalidatePath("/", "layout");
@@ -40,7 +51,8 @@ export async function createPurchase(input: z.input<typeof purchaseSchema>): Pro
 
 const requisitionSchema = z.object({
   justification: z.string().trim().min(5, "Explica brevemente por qué se necesita la compra").max(300),
-  items: z.array(z.object({ product_id: uuid, quantity })).min(1, "Agrega al menos un producto").max(200),
+  cost_center_id: uuid.nullable().optional(),
+  items: z.array(z.object({ product_id: uuid, quantity, pack_unit: packUnit, pack_size: packSize })).min(1, "Agrega al menos un producto").max(200),
 });
 
 /** Solicitud de pedido: la crea cualquier área; Compras la aprueba y emite la orden. */
@@ -48,7 +60,12 @@ export async function createRequisition(input: z.input<typeof requisitionSchema>
   const parsed = requisitionSchema.safeParse(input);
   if (!parsed.success) return fail(firstIssue(parsed.error));
   const { supabase, branch } = await getContext();
-  const { data, error } = await supabase.rpc("create_requisition", { p_branch: branch.id, p_justification: parsed.data.justification, p_items: parsed.data.items });
+  const { data, error } = await supabase.rpc("create_requisition", {
+    p_branch: branch.id,
+    p_justification: parsed.data.justification,
+    p_items: parsed.data.items,
+    p_cost_center: parsed.data.cost_center_id ?? null,
+  });
   if (error) return fail(friendlyError(error));
   revalidatePath("/", "layout");
   return success({ id: data as string });

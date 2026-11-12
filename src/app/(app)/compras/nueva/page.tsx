@@ -19,17 +19,21 @@ export default async function NewPurchasePage({ searchParams }: PageProps<"/comp
 
   const requisitionId = param((await searchParams).solicitud);
 
-  const [suppliersRes, products, requisitionRes] = await Promise.all([
-    supabase.from("suppliers").select("id, name, tax_id").eq("active", true).order("name"),
+  const [suppliersRes, products, requisitionRes, centersRes] = await Promise.all([
+    supabase.from("suppliers").select("id, name, tax_id, payment_terms").eq("active", true).order("name"),
     fetchAll<PurchaseProduct>((a, b) =>
-      supabase.from("inventory_view").select("product_id, sku, name, unit, cost, quantity, min_stock").eq("branch_id", branch.id).eq("active", true).order("name").order("product_id").range(a, b),
+      supabase.from("inventory_view").select("product_id, sku, name, unit, cost, quantity, min_stock, pack_unit, pack_size").eq("branch_id", branch.id).eq("active", true).order("name").order("product_id").range(a, b),
     ),
     UUID.test(requisitionId)
-      ? supabase.from("purchase_requisitions").select("id, number, status, branch_id, items:purchase_requisition_items(product_id, quantity)").eq("id", requisitionId).maybeSingle()
+      ? supabase.from("purchase_requisitions").select("id, number, status, branch_id, cost_center_id, items:purchase_requisition_items(product_id, quantity, pack_unit, pack_size)").eq("id", requisitionId).maybeSingle()
       : null,
+    supabase.from("cost_centers").select("id, code, name").eq("active", true).order("code"),
   ]);
 
-  const req = requisitionRes?.data as { id: string; number: string; status: string; branch_id: string; items: { product_id: string; quantity: number }[] } | null | undefined;
+  const req = requisitionRes?.data as
+    | { id: string; number: string; status: string; branch_id: string; cost_center_id: string | null; items: { product_id: string; quantity: number; pack_unit: string; pack_size: number }[] }
+    | null
+    | undefined;
   // Solo se convierte una solicitud aprobada de la sucursal activa
   if (requisitionId && (!req || req.status !== "aprobada" || req.branch_id !== branch.id)) redirect("/compras/solicitudes");
 
@@ -46,9 +50,10 @@ export default async function NewPurchasePage({ searchParams }: PageProps<"/comp
       </PageHeader>
       <PurchaseForm
         key={req?.id ?? "directa"}
-        suppliers={(suppliersRes.data ?? []).map((s) => ({ value: s.id as string, label: `${s.name} · ${s.tax_id}` }))}
+        suppliers={(suppliersRes.data ?? []).map((s) => ({ value: s.id as string, label: `${s.name} · ${s.tax_id} · crédito ${Number(s.payment_terms ?? 30)} días` }))}
+        costCenters={((centersRes.data ?? []) as { id: string; code: string; name: string }[]).map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
         products={products}
-        requisition={req ? { id: req.id, number: req.number, items: req.items } : undefined}
+        requisition={req ? { id: req.id, number: req.number, cost_center_id: req.cost_center_id, items: req.items } : undefined}
       />
     </>
   );

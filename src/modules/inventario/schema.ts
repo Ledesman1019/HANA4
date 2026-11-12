@@ -28,6 +28,14 @@ export const products: EntityDef = {
     price: money("El precio"),
     min_stock: money("El stock mínimo"),
     track_lots: z.preprocess((v) => v === true || v === "true", z.boolean()),
+    /** Presentación de compra (CAJA, PAQUETE…) y sus unidades; vacía = se compra por unidad */
+    pack_unit: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^([A-Z]{2,12})?$/, "Presentación inválida: solo letras (ej. CAJA)")
+      .default(""),
+    pack_size: z.coerce.number<number>("Unidades por presentación inválidas").min(1, "La presentación debe tener al menos 1 unidad").max(100_000).default(1),
     // Solo se aceptan imágenes de nuestro propio almacenamiento
     image_url: z.preprocess(
       emptyToNull,

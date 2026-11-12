@@ -15,6 +15,7 @@ const columns: Column<Supplier>[] = [
       </div>
     ),
   },
+  { header: "Crédito", cell: (s) => (Number(s.payment_terms) > 0 ? `${Number(s.payment_terms)} días` : "Contado") },
   { header: "Contacto", cell: (s) => s.contact_name || "—" },
   { header: "Teléfono", cell: (s) => s.phone || "—" },
   { header: "Correo", cell: (s) => s.email || "—" },
@@ -28,6 +29,7 @@ const fields: FieldDef[] = [
   { name: "phone", label: "Teléfono", type: "tel", maxLength: 30 },
   { name: "email", label: "Correo", type: "email" },
   { name: "address", label: "Dirección", maxLength: 200 },
+  { name: "payment_terms", label: "Plazo de pago (días de crédito)", type: "number", step: "1", required: true, defaultValue: "30", hint: "Sus facturas vencen a estos días de emitidas. 0 = al contado." },
 ];
 
 export function SuppliersView({ rows, startNew }: { rows: Supplier[]; startNew?: boolean }) {
@@ -50,6 +52,7 @@ export function SuppliersView({ rows, startNew }: { rows: Supplier[]; startNew?:
         columns: [
           { header: "RUC", value: (s) => s.tax_id },
           { header: "Razón social", value: (s) => s.name },
+          { header: "Crédito (días)", type: "number", value: (s) => Number(s.payment_terms) },
           { header: "Contacto", value: (s) => s.contact_name },
           { header: "Teléfono", value: (s) => s.phone },
           { header: "Correo", value: (s) => s.email },

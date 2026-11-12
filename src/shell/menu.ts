@@ -6,6 +6,7 @@
 import {
   ArrowLeftRight,
   BadgeDollarSign,
+  Banknote,
   BarChart3,
   BookOpenText,
   Boxes,
@@ -15,6 +16,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   ClipboardPlus,
+  CreditCard,
   Factory,
   FilePlus2,
   FileText,
@@ -22,12 +24,14 @@ import {
   FolderArchive,
   HandCoins,
   History,
+  IdCard,
   Landmark,
   LayoutDashboard,
   ListChecks,
   MessageSquareWarning,
   MonitorCog,
   NotebookPen,
+  PackageCheck,
   PackagePlus,
   PackageSearch,
   PiggyBank,
@@ -47,6 +51,7 @@ import {
   Users,
   UsersRound,
   Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission, type Action, type ModuleKey, type Permissions } from "@/lib/modules";
@@ -58,6 +63,8 @@ export type Tile = {
   /** Módulo de permisos que exige (null = cualquier usuario con sesión) */
   module: ModuleKey | null;
   needs: Action | "access";
+  /** Permiso adicional (ej. vender exige además tener caja) */
+  also?: [ModuleKey, Action | "access"];
   /** Abre una ventana en lugar de navegar */
   action?: "preferences" | "about";
 };
@@ -73,14 +80,21 @@ export type SapModule = {
   areas: Area[];
 };
 
-const t = (label: string, href: string, icon: LucideIcon, module: ModuleKey | null, needs: Action | "access" = "view"): Tile => ({ label, href, icon, module, needs });
+const t = (label: string, href: string, icon: LucideIcon, module: ModuleKey | null, needs: Action | "access" = "view", also?: Tile["also"]): Tile => ({
+  label,
+  href,
+  icon,
+  module,
+  needs,
+  also,
+});
 
 export const SAP_MODULES: SapModule[] = [
   {
     key: "mm",
     code: "MM",
     name: "Gestión de Materiales",
-    desc: "Inventario, compras y proveedores",
+    desc: "Inventario, almacén y compras",
     icon: Boxes,
     areas: [
       {
@@ -90,12 +104,21 @@ export const SAP_MODULES: SapModule[] = [
         tiles: [
           t("Listado de Productos", "/inventario", PackageSearch, "inventario"),
           t("Nuevo Producto", "/inventario?nuevo=1", PackagePlus, "inventario", "create"),
-          t("Inventario Físico", "/inventario", ScanBarcode, "inventario", "edit"),
+          t("Inventario Físico", "/inventario/fisico", ScanBarcode, "inventario", "edit"),
           t("Transferencias (Histórico)", "/inventario/movimientos?tipo=transferencia_salida", ArrowLeftRight, "inventario"),
           t("Ajustes (Histórico)", "/inventario/movimientos?tipo=ajuste", ClipboardCheck, "inventario"),
-          t("Categorías", "/inventario/categorias", Tags, "inventario"),
           t("Kardex", "/inventario/movimientos", ScrollText, "inventario"),
           t("Lotes y Vencimientos", "/inventario/lotes", CalendarRange, "inventario"),
+          t("Categorías", "/inventario/categorias", Tags, "inventario"),
+        ],
+      },
+      {
+        key: "almacen",
+        label: "Almacén",
+        icon: Warehouse,
+        tiles: [
+          t("Recepción de Mercadería", "/compras?estado=ordenada", PackageCheck, "compras", "view", ["inventario", "edit"]),
+          t("Recibos de Mercadería (Histórico)", "/inventario/movimientos?tipo=compra", History, "inventario", "view", ["compras", "view"]),
         ],
       },
       {
@@ -106,11 +129,9 @@ export const SAP_MODULES: SapModule[] = [
           t("Nuevo Proveedor", "/proveedores?nuevo=1", UserPlus, "proveedores", "create"),
           t("Listado de Proveedores", "/proveedores", Truck, "proveedores"),
           t("Nueva Solicitud de Pedido", "/compras/solicitudes/nueva", ClipboardPlus, "compras", "create"),
-          t("Solicitudes de Pedido (Histórico)", "/compras/solicitudes", ListChecks, "compras"),
+          t("Solicitudes de Pedido (Histórico)", "/compras/solicitudes", ListChecks, "compras", "view", ["proveedores", "view"]),
           t("Nueva Orden de Compra", "/compras/nueva", FilePlus2, "compras", "edit"),
-          t("Órdenes de Compra y Recepción", "/compras", FolderArchive, "compras"),
-          t("Recibos de Mercadería (Histórico)", "/inventario/movimientos?tipo=compra", History, "inventario"),
-          t("Facturas de Proveedor", "/cuentas-por-pagar", HandCoins, "cuentas_pagar"),
+          t("Órdenes de Compra (Histórico)", "/compras", FolderArchive, "compras", "view", ["proveedores", "view"]),
         ],
       },
     ],
@@ -119,7 +140,7 @@ export const SAP_MODULES: SapModule[] = [
     key: "sd",
     code: "SD",
     name: "Ventas y Distribución",
-    desc: "Ventas, clientes, caja y cobranza",
+    desc: "Ventas, clientes y caja",
     icon: ShoppingCart,
     areas: [
       {
@@ -127,11 +148,11 @@ export const SAP_MODULES: SapModule[] = [
         label: "Ventas",
         icon: ShoppingCart,
         tiles: [
-          t("Nueva Venta", "/pos", ShoppingCart, "ventas", "create"),
-          t("Ventas (Histórico)", "/ventas", FolderArchive, "ventas", "access"),
-          t("Notas de Crédito (Anulaciones)", "/ventas?estado=anulada", FileX2, "ventas", "access"),
+          t("Nueva Venta", "/pos", ShoppingCart, "ventas", "create", ["caja", "create"]),
           t("Nueva Orden de Venta (Cotización)", "/cotizaciones/nueva", FilePlus2, "ventas", "create"),
           t("Órdenes de Venta (Histórico)", "/cotizaciones", FileText, "ventas", "access"),
+          t("Ventas (Histórico)", "/ventas", FolderArchive, "ventas", "access"),
+          t("Notas de Crédito (Anulaciones)", "/ventas?estado=anulada", FileX2, "ventas", "view"),
           t("Clientes", "/clientes", Users, "clientes"),
           t("Nuevo Cliente", "/clientes?nuevo=1", UserPlus, "clientes", "create"),
         ],
@@ -141,17 +162,10 @@ export const SAP_MODULES: SapModule[] = [
         label: "Caja",
         icon: Wallet,
         tiles: [
-          t("Caja: Apertura y Cierre", "/caja", Wallet, "caja", "access"),
-          t("Comprobantes Electrónicos", "/facturacion", Receipt, "facturacion"),
-        ],
-      },
-      {
-        key: "cobranza",
-        label: "Cobranza",
-        icon: PiggyBank,
-        tiles: [
-          t("Cuentas por Cobrar", "/cuentas-por-cobrar", PiggyBank, "cuentas_cobrar"),
-          t("Cobros Vencidos", "/cuentas-por-cobrar?estado=vencidas", Timer, "cuentas_cobrar"),
+          t("Caja: Apertura y Cierre", "/caja", Wallet, "caja", "create"),
+          t("Cobrar Órdenes de Venta", "/cotizaciones?estado=vigente", HandCoins, "caja", "create", ["ventas", "create"]),
+          t("Cierres de Caja (Histórico)", "/caja/cierres", History, "caja", "access"),
+          t("Cobrar Ventas al Crédito", "/cuentas-por-cobrar", PiggyBank, "cuentas_cobrar", "create", ["caja", "create"]),
         ],
       },
     ],
@@ -160,7 +174,7 @@ export const SAP_MODULES: SapModule[] = [
     key: "fi",
     code: "FI",
     name: "Finanzas",
-    desc: "Contabilidad, gastos y tesorería",
+    desc: "Contabilidad, gastos, cuentas por pagar y por cobrar",
     icon: Landmark,
     areas: [
       {
@@ -177,16 +191,39 @@ export const SAP_MODULES: SapModule[] = [
         ],
       },
       {
-        key: "tesoreria",
-        label: "Tesorería",
-        icon: Landmark,
+        key: "gastos",
+        label: "Gastos",
+        icon: BadgeDollarSign,
         tiles: [
-          t("Gastos y Resultados", "/finanzas", Landmark, "finanzas"),
-          t("Nuevo Gasto", "/finanzas?nuevo=1", BadgeDollarSign, "finanzas", "create"),
-          t("Cuentas por Pagar", "/cuentas-por-pagar", HandCoins, "cuentas_pagar"),
-          t("Pagos Vencidos", "/cuentas-por-pagar?estado=vencidas", Timer, "cuentas_pagar"),
-          t("Cuentas por Cobrar", "/cuentas-por-cobrar", PiggyBank, "cuentas_cobrar"),
+          t("Gastos", "/finanzas", BadgeDollarSign, "finanzas"),
+          t("Nuevo Gasto", "/finanzas?nuevo=1", FilePlus2, "finanzas", "create"),
+          t("Estado de Resultados", "/finanzas/resultados", Landmark, "finanzas"),
         ],
+      },
+      {
+        key: "pagar",
+        label: "Cuentas por Pagar",
+        icon: HandCoins,
+        tiles: [
+          t("Facturas de Proveedor", "/cuentas-por-pagar", HandCoins, "cuentas_pagar"),
+          t("Pagos Vencidos", "/cuentas-por-pagar?estado=vencidas", Timer, "cuentas_pagar"),
+        ],
+      },
+      {
+        key: "cobrar",
+        label: "Cuentas por Cobrar",
+        icon: PiggyBank,
+        tiles: [
+          t("Cuentas por Cobrar", "/cuentas-por-cobrar", PiggyBank, "cuentas_cobrar", "view", ["finanzas", "view"]),
+          t("Cobros Vencidos", "/cuentas-por-cobrar?estado=vencidas", Timer, "cuentas_cobrar", "view", ["finanzas", "view"]),
+          t("Líneas de Crédito", "/cuentas-por-cobrar/lineas", CreditCard, "cuentas_cobrar", "edit"),
+        ],
+      },
+      {
+        key: "comprobantes",
+        label: "Comprobantes",
+        icon: Receipt,
+        tiles: [t("Comprobantes Electrónicos", "/facturacion", Receipt, "facturacion")],
       },
     ],
   },
@@ -194,7 +231,7 @@ export const SAP_MODULES: SapModule[] = [
     key: "co",
     code: "CO",
     name: "Controlling",
-    desc: "Centros de costo, reportes e indicadores",
+    desc: "Indicadores, reportes y centros de costo",
     icon: Target,
     areas: [
       {
@@ -202,10 +239,11 @@ export const SAP_MODULES: SapModule[] = [
         label: "Control de Gestión",
         icon: Target,
         tiles: [
-          t("Panel del Negocio", "/panel", LayoutDashboard, null, "access"),
+          t("Panel del Negocio", "/panel", LayoutDashboard, "reportes"),
           t("Reportes", "/reportes", BarChart3, "reportes"),
           t("Centros de Costo", "/contabilidad/centros", Target, "contabilidad"),
           t("Nuevo Centro de Costo", "/contabilidad/centros?nuevo=1", FilePlus2, "contabilidad", "create"),
+          t("Reporte por Centro de Costo", "/contabilidad/centros/reporte", BarChart3, "contabilidad"),
         ],
       },
     ],
@@ -222,8 +260,10 @@ export const SAP_MODULES: SapModule[] = [
         label: "Personal",
         icon: UserRound,
         tiles: [
-          t("Colaboradores y Comisiones", "/rrhh", UsersRound, "rrhh"),
+          t("Colaboradores", "/rrhh", UsersRound, "rrhh"),
           t("Nuevo Colaborador", "/rrhh?nuevo=1", UserPlus, "rrhh", "create"),
+          t("Comisiones", "/rrhh/comisiones", HandCoins, "rrhh"),
+          t("Pago de Planilla", "/rrhh/planilla", Banknote, "rrhh"),
         ],
       },
     ],
@@ -232,7 +272,7 @@ export const SAP_MODULES: SapModule[] = [
     key: "general",
     code: "BASIS",
     name: "General",
-    desc: "Preferencias, mensajes, calendario y configuración",
+    desc: "Mis datos, preferencias, mensajes, calendario y configuración",
     icon: Settings,
     areas: [
       {
@@ -243,6 +283,7 @@ export const SAP_MODULES: SapModule[] = [
           { ...t("Preferencias de Estación de Trabajo", "#preferencias", MonitorCog, null, "access"), action: "preferences" },
           t("Mensajes de Tienda", "/mensajes", MessageSquareWarning, null, "access"),
           t("Calendario", "/calendario", CalendarDays, null, "access"),
+          t("Mis Datos", "/mis-datos", IdCard, null, "access"),
         ],
       },
       {
@@ -263,7 +304,8 @@ export const SAP_MODULES: SapModule[] = [
 
 /** Módulos, áreas y mosaicos que el rol puede ver; se ocultan los que quedan vacíos. */
 export function menuFor(role: string, permissions: Permissions): SapModule[] {
-  const allowed = (tile: Tile) => tile.module === null || hasPermission(role, permissions, tile.module, tile.needs);
+  const allowed = (tile: Tile) =>
+    (tile.module === null || hasPermission(role, permissions, tile.module, tile.needs)) && (!tile.also || hasPermission(role, permissions, tile.also[0], tile.also[1]));
   return SAP_MODULES.map((m) => ({
     ...m,
     areas: m.areas.map((a) => ({ ...a, tiles: a.tiles.filter(allowed) })).filter((a) => a.tiles.length > 0),

@@ -14,5 +14,7 @@ export type Employee = {
   /** % de comisión sobre la venta neta */
   commission_rate: number;
   hire_date: string;
+  /** Centro de costo al que va su sueldo en la contabilidad */
+  cost_center_id?: string | null;
   status: "activo" | "vacaciones" | "licencia" | "cesado";
 };

@@ -59,6 +59,7 @@ export function ExpensesView({
       fields={fields}
       getId={(e) => e.id}
       searchText={(e) => `${e.description} ${EXPENSE_LABELS[e.category] ?? ""}`}
+      filter={{ label: "Categoría", options: Object.entries(EXPENSE_LABELS).map(([value, label]) => ({ value, label, test: (e: Expense) => e.category === value })) }}
       searchPlaceholder="Buscar gasto…"
       exportable={{
         title: "Gastos",

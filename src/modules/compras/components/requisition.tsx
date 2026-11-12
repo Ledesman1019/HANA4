@@ -5,16 +5,29 @@ import { useRouter } from "next/navigation";
 import { Check, PackagePlus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogFooter } from "@/components/dialog";
-import { Badge, Button, Card, CardHeader, EmptyState, Field, FormError, Input, Table, Td, Textarea, Th } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Field, FormError, Input, Select, Table, Td, Textarea, Th } from "@/components/ui";
 import { formatQty } from "@/lib/utils";
 import { createRequisition, decideRequisition } from "@/modules/compras/actions";
+import { baseQuantity, initialPack, PackPicker, type PackLine } from "./pack";
 
-export type RequisitionProduct = { product_id: string; sku: string; name: string; unit: string; quantity: number; min_stock: number };
+export type RequisitionProduct = {
+  product_id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  min_stock: number;
+  pack_unit?: string | null;
+  pack_size?: number | null;
+};
+
+type Line = PackLine & { product_id: string };
 
 /** Solicitud de pedido: qué se necesita y por qué. Los precios los negocia Compras. */
-export function RequisitionForm({ products }: { products: RequisitionProduct[] }) {
+export function RequisitionForm({ products, costCenters }: { products: RequisitionProduct[]; costCenters: { value: string; label: string }[] }) {
   const router = useRouter();
-  const [lines, setLines] = useState<{ product_id: string; quantity: string }[]>([]);
+  const [lines, setLines] = useState<Line[]>([]);
+  const [costCenter, setCostCenter] = useState("");
   const [justification, setJustification] = useState("");
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +35,14 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
 
   const byId = useMemo(() => new Map(products.map((p) => [p.product_id, p])), [products]);
   const chosen = new Set(lines.map((l) => l.product_id));
-  const suggested = (p: RequisitionProduct) => String(Math.max(Math.ceil(Number(p.min_stock) * 2 - Number(p.quantity)), 1));
+  // Sugerido: reponer hasta el doble del mínimo, en la presentación de compra del producto
+  const newLine = (p: RequisitionProduct): Line => {
+    const pack = initialPack(p);
+    const units = Math.max(Math.ceil(Number(p.min_stock) * 2 - Number(p.quantity)), 1);
+    const size = pack.pack_unit ? Number(pack.pack_size) || 1 : 1;
+    return { product_id: p.product_id, quantity: String(Math.max(1, Math.ceil(units / size))), ...pack };
+  };
+  const patch = (id: string, change: Partial<Line>) => setLines((prev) => prev.map((x) => (x.product_id === id ? { ...x, ...change } : x)));
   const lowStock = products.filter((p) => Number(p.quantity) <= Number(p.min_stock) && !chosen.has(p.product_id));
 
   const matches = useMemo(() => {
@@ -33,7 +53,7 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
 
   const add = (p: RequisitionProduct) => {
     if (chosen.has(p.product_id)) return;
-    setLines((prev) => [...prev, { product_id: p.product_id, quantity: suggested(p) }]);
+    setLines((prev) => [...prev, newLine(p)]);
     setQuery("");
   };
 
@@ -41,7 +61,11 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
     setError(null);
     if (lines.length === 0) return setError("Agrega al menos un producto");
     startTransition(async () => {
-      const res = await createRequisition({ justification, items: lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity) })) });
+      const res = await createRequisition({
+        justification,
+        cost_center_id: costCenter || null,
+        items: lines.map((l) => ({ product_id: l.product_id, quantity: baseQuantity(l), pack_unit: l.pack_unit, pack_size: l.pack_unit ? Number(l.pack_size) : 1 })),
+      });
       if (!res.ok) return setError(res.error);
       toast.success("Solicitud enviada a aprobación");
       setLines([]);
@@ -103,7 +127,8 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
                 <Th>Producto</Th>
                 <Th className="text-right">Stock actual</Th>
                 <Th className="text-right">Mínimo</Th>
-                <Th className="w-32 text-right">Cantidad a pedir</Th>
+                <Th>Presentación</Th>
+                <Th className="w-28 text-right">Cantidad</Th>
                 <Th className="w-px" />
               </tr>
             </thead>
@@ -121,13 +146,16 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
                     </Td>
                     <Td className="tabular text-right">{formatQty(p?.min_stock)}</Td>
                     <Td>
+                      <PackPicker line={l} product={p} label={p?.name ?? ""} onChange={(change) => patch(l.product_id, change)} />
+                    </Td>
+                    <Td>
                       <Input
                         type="number"
                         min={0.001}
                         step="0.001"
                         inputMode="decimal"
                         value={l.quantity}
-                        onChange={(e) => setLines((prev) => prev.map((x) => (x.product_id === l.product_id ? { ...x, quantity: e.target.value } : x)))}
+                        onChange={(e) => patch(l.product_id, { quantity: e.target.value })}
                         aria-label={`Cantidad de ${p?.name}`}
                         className="tabular text-right"
                       />
@@ -150,7 +178,7 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
               <p className="text-xs font-medium text-slate-500">Productos en o bajo su stock mínimo</p>
               <button
                 type="button"
-                onClick={() => setLines((prev) => [...prev, ...lowStock.map((p) => ({ product_id: p.product_id, quantity: suggested(p) }))])}
+                onClick={() => setLines((prev) => [...prev, ...lowStock.map(newLine)])}
                 className="cursor-pointer text-xs font-semibold text-link hover:underline"
               >
                 Agregar todos ({lowStock.length})
@@ -176,6 +204,16 @@ export function RequisitionForm({ products }: { products: RequisitionProduct[] }
       <Card className="self-start p-5 lg:sticky lg:top-20">
         <Field label="Justificación *" hint="Por qué se necesita: stock bajo, campaña, pedido de un cliente…">
           <Textarea value={justification} onChange={(e) => setJustification(e.target.value)} maxLength={300} rows={4} required />
+        </Field>
+        <Field label="Centro de costo" hint="Área que solicita la compra." className="mt-4">
+          <Select value={costCenter} onChange={(e) => setCostCenter(e.target.value)}>
+            <option value="">— Sin asignar —</option>
+            {costCenters.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
         </Field>
         <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
           La solicitud pasa a <strong className="font-semibold text-slate-800">aprobación</strong>. Otra persona con permiso de Compras la revisa y, si procede, emite la orden al proveedor.

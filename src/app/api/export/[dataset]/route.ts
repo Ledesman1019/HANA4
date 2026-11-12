@@ -5,7 +5,8 @@ import { fetchAll } from "@/lib/supabase/paginate";
 import { DOC_LABELS } from "@/modules/ventas/types";
 import { MOVEMENT_LABELS } from "@/modules/inventario/types";
 import { PAYMENT_LABELS } from "@/lib/types";
-import { PURCHASE_STATUS } from "@/modules/compras/types";
+import { PURCHASE_STATUS, REQUISITION_STATUS } from "@/modules/compras/types";
+import { QUOTE_STATUS } from "@/modules/ventas/types";
 import { addDays, formatDateTime, isIsoDate, todayIn, zonedDayStart } from "@/lib/utils";
 
 /**
@@ -99,7 +100,9 @@ async function kardex(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
   }));
 }
 
-async function compras(ctx: AppContext): Promise<ExportRow[]> {
+async function compras(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
+  const status = Object.hasOwn(PURCHASE_STATUS, sp.get("estado") ?? "") ? sp.get("estado")! : "";
+  const q = clean(sp.get("q"), 30);
   type Row = { number: string; status: string; subtotal: number; tax: number; total: number; expected_date: string | null; created_at: string; supplier: { name: string; tax_id: string } | null };
   const rows = await fetchAll<Row>(
     (a, b) =>
@@ -107,6 +110,8 @@ async function compras(ctx: AppContext): Promise<ExportRow[]> {
         .from("purchases")
         .select("number, status, subtotal, tax, total, expected_date, created_at, supplier:suppliers(name, tax_id)")
         .eq("branch_id", ctx.branch.id)
+        .match(status ? { status } : {})
+        .ilike("number", `%${q}%`)
         .order("created_at", { ascending: false })
         .range(a, b),
     { max: MAX_ROWS },
@@ -195,6 +200,120 @@ async function diario(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
     }));
 }
 
+async function solicitudes(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
+  const status = Object.hasOwn(REQUISITION_STATUS, sp.get("estado") ?? "") ? sp.get("estado")! : "";
+  const q = clean(sp.get("q"), 30);
+  type Row = { number: string; status: string; justification: string; created_at: string; requester: { full_name: string } | null; cost_center: { code: string; name: string } | null; items: { id: string }[] };
+  const rows = await fetchAll<Row>(
+    (a, b) =>
+      ctx.supabase
+        .from("purchase_requisitions")
+        .select("number, status, justification, created_at, requester:profiles!purchase_requisitions_requested_by_fkey(full_name), cost_center:cost_centers(code, name), items:purchase_requisition_items(id)")
+        .eq("branch_id", ctx.branch.id)
+        .match(status ? { status } : {})
+        .ilike("number", `%${q}%`)
+        .order("created_at", { ascending: false })
+        .range(a, b),
+    { max: MAX_ROWS },
+  );
+  return rows.map((r) => ({
+    numero: r.number,
+    fecha: formatDateTime(r.created_at, ctx.settings.timezone),
+    solicitante: r.requester?.full_name ?? "",
+    centro: r.cost_center ? `${r.cost_center.code} · ${r.cost_center.name}` : "",
+    justificacion: r.justification,
+    productos: r.items.length,
+    estado: REQUISITION_STATUS[r.status]?.label ?? r.status,
+  }));
+}
+
+async function cotizaciones(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
+  const today = todayIn(ctx.settings.timezone);
+  const status = Object.hasOwn(QUOTE_STATUS, sp.get("estado") ?? "") ? sp.get("estado")! : "";
+  type Row = { number: string; status: string; total: number; valid_until: string; created_at: string; customer: { name: string } | null; creator: { full_name: string } | null };
+  const rows = await fetchAll<Row>((a, b) => {
+    let query = ctx.supabase
+      .from("quotations")
+      .select("number, status, total, valid_until, created_at, customer:customers(name), creator:profiles!quotations_created_by_fkey(full_name)")
+      .eq("branch_id", ctx.branch.id)
+      .order("created_at", { ascending: false })
+      .range(a, b);
+    if (status === "vencida") query = query.eq("status", "vigente").lt("valid_until", today);
+    else if (status === "vigente") query = query.eq("status", "vigente").gte("valid_until", today);
+    else if (status) query = query.eq("status", status);
+    return query;
+  }, { max: MAX_ROWS });
+  return rows.map((r) => {
+    const key = r.status === "vigente" && r.valid_until < today ? "vencida" : r.status;
+    return {
+      numero: r.number,
+      fecha: formatDateTime(r.created_at, ctx.settings.timezone),
+      cliente: r.customer?.name ?? "Cliente varios",
+      vendedor: r.creator?.full_name ?? "",
+      vigencia: r.valid_until,
+      estado: QUOTE_STATUS[key]?.label ?? key,
+      total: Number(r.total),
+    };
+  });
+}
+
+async function cierres(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
+  const tz = ctx.settings.timezone;
+  const from = isIsoDate(sp.get("desde") ?? "") ? sp.get("desde")! : todayIn(tz, -29);
+  const to = isIsoDate(sp.get("hasta") ?? "") ? sp.get("hasta")! : todayIn(tz);
+  type Row = { opened_at: string; closed_at: string; opening_amount: number; expected_amount: number; counted_amount: number; difference: number; note: string; opener: { full_name: string } | null; branch: { name: string } | null };
+  const rows = await fetchAll<Row>((a, b) => {
+    let query = ctx.supabase
+      .from("cash_sessions")
+      .select("opened_at, closed_at, opening_amount, expected_amount, counted_amount, difference, note, opener:profiles!cash_sessions_opened_by_fkey(full_name), branch:branches(name)")
+      .eq("status", "cerrada")
+      .gte("closed_at", zonedDayStart(from, tz))
+      .lt("closed_at", zonedDayStart(addDays(to, 1), tz))
+      .order("closed_at", { ascending: false })
+      .range(a, b);
+    if (!ctx.can("caja", "view")) query = query.eq("opened_by", ctx.userId);
+    return query;
+  }, { max: MAX_ROWS });
+  return rows.map((s) => ({
+    cajero: s.opener?.full_name ?? "",
+    sucursal: s.branch?.name ?? "",
+    apertura: formatDateTime(s.opened_at, tz),
+    cierre: formatDateTime(s.closed_at, tz),
+    fondo: Number(s.opening_amount),
+    esperado: Number(s.expected_amount),
+    contado: Number(s.counted_amount),
+    diferencia: Number(s.difference),
+    nota: s.note,
+  }));
+}
+
+async function planilla(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
+  const period = /^d{4}-(0[1-9]|1[0-2])$/.test(sp.get("periodo") ?? "") ? sp.get("periodo")! : "";
+  type Row = { number: string; period: string; salary: number; commissions: number; total: number; method: string; paid_at: string; status: string; employee: { full_name: string; doc_number: string } | null };
+  const rows = await fetchAll<Row>(
+    (a, b) =>
+      ctx.supabase
+        .from("payroll_payments")
+        .select("number, period, salary, commissions, total, method, paid_at, status, employee:employees(full_name, doc_number)")
+        .match(period ? { period } : {})
+        .order("created_at", { ascending: false })
+        .range(a, b),
+    { max: MAX_ROWS },
+  );
+  return rows.map((r) => ({
+    numero: r.number,
+    periodo: r.period,
+    colaborador: r.employee?.full_name ?? "",
+    documento: r.employee?.doc_number ?? "",
+    fecha: r.paid_at,
+    medio: r.method === "efectivo" ? "Efectivo" : "Transferencia",
+    estado: r.status === "pagado" ? "Pagado" : "Anulado",
+    sueldo: r.status === "pagado" ? Number(r.salary) : null,
+    comisiones: r.status === "pagado" ? Number(r.commissions) : null,
+    total: r.status === "pagado" ? Number(r.total) : null,
+  }));
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ dataset: string }> }) {
   const ctx = await loadContext();
   if (ctx.status !== "ok") return NextResponse.json({ rows: [] }, { status: 401 });
@@ -205,9 +324,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   if (dataset === "ventas" && ctx.can("ventas", "access")) rows = await ventas(ctx, sp);
   else if (dataset === "kardex" && ctx.can("inventario", "view")) rows = await kardex(ctx, sp);
-  else if (dataset === "compras" && ctx.can("compras", "view")) rows = await compras(ctx);
+  else if (dataset === "compras" && ctx.can("compras", "view")) rows = await compras(ctx, sp);
   else if (dataset === "facturacion" && ctx.can("facturacion", "view")) rows = await facturacion(ctx, sp);
   else if (dataset === "diario" && ctx.can("contabilidad", "view")) rows = await diario(ctx, sp);
+  else if (dataset === "solicitudes" && ctx.can("compras", "view")) rows = await solicitudes(ctx, sp);
+  else if (dataset === "cotizaciones" && ctx.can("ventas", "access")) rows = await cotizaciones(ctx, sp);
+  else if (dataset === "cierres" && ctx.can("caja", "access")) rows = await cierres(ctx, sp);
+  else if (dataset === "planilla" && ctx.can("rrhh", "view")) rows = await planilla(ctx, sp);
   else return NextResponse.json({ rows: [] }, { status: 403 });
 
   return NextResponse.json({ rows }, { headers: { "Cache-Control": "private, no-store" } });

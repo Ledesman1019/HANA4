@@ -81,8 +81,10 @@ try {
   console.log("— Administrador —");
   // Inicio al estilo ERP clásico: módulos SAP en mosaicos, áreas y funciones
   await page(a, "/", ["Gestión de Materiales", "Ventas y Distribución", "Finanzas", "Controlling", "Recursos Humanos", "Acerca de"]);
-  await page(a, "/?m=mm&a=compras", ["Nuevo Proveedor", "Nueva Orden de Compra", "Órdenes de Compra y Recepción", "Atrás"], "lanzador MM › Compras");
-  await page(a, "/?m=general", ["Preferencias de Estación de Trabajo", "Mensajes de Tienda", "Calendario"], "lanzador General");
+  await page(a, "/?m=mm&a=compras", ["Nuevo Proveedor", "Nueva Orden de Compra", "Órdenes de Compra (Histórico)", "Atrás"], "lanzador MM › Compras");
+  await page(a, "/?m=mm&a=almacen", ["Recepción de Mercadería", "Recibos de Mercadería (Histórico)"], "lanzador MM › Almacén");
+  await page(a, "/?m=general", ["Preferencias de Estación de Trabajo", "Mensajes de Tienda", "Calendario", "Mis Datos"], "lanzador General");
+  await page(a, "/mis-datos", ["Mis datos"]);
   await page(a, "/panel", ["Ventas de hoy", "Ventas por día"]);
   await page(a, "/mensajes", ["Mensajes de tienda"]);
   await page(a, "/calendario", ["Vencimientos del mes"]);
@@ -91,25 +93,33 @@ try {
   const saleId = ventas.match(/\/ventas\/([0-9a-f-]{36})/)?.[1];
   if (saleId) await page(a, `/ventas/${saleId}`, ["Op. gravada", "Total"], "/ventas/[id]");
   else report(false, "/ventas/[id]", "no se encontró ningún comprobante en la lista");
-  await page(a, "/caja", ["Historial de cierres"]);
+  await page(a, "/caja", ["Caja: apertura y cierre"]);
+  await page(a, "/caja/cierres", ["Cierres de caja (histórico)", "Resultado"]);
   await page(a, "/clientes", ["Cliente", "Documento"]);
-  await page(a, "/inventario", ["Productos activos", "Arroz Extra 5 kg"]);
+  const inv = await page(a, "/inventario", ["Listado de productos", "Productos activos", "Arroz Extra 5 kg"]);
+  report(!inv.includes(">Kardex<") && !inv.includes(">Lotes y vencimientos<"), "cada pantalla muestra solo lo suyo (sin pestañas de otras pantallas)");
+  await page(a, "/inventario/fisico", ["Inventario físico", "Referencia del conteo"]);
+  await page(a, "/inventario/movimientos?tipo=ajuste", ["Ajustes de inventario (histórico)"], "kardex filtrado: ajustes");
   await page(a, "/inventario/movimientos", ["Saldo"]);
   await page(a, "/inventario/categorias", ["Abarrotes"]);
-  await page(a, "/compras", ["Compras", "Órdenes de compra", "Orden directa"]);
+  await page(a, "/compras", ["Órdenes de compra", "Orden directa", "N.º de orden"]);
+  await page(a, "/compras?estado=ordenada", ["Recepción de mercadería"], "compras por recibir");
   await page(a, "/compras/solicitudes", ["Solicitudes de pedido", "Nueva solicitud"]);
-  await page(a, "/compras/solicitudes/nueva", ["Productos solicitados", "Enviar a aprobación"]);
+  await page(a, "/compras/solicitudes/nueva", ["Productos solicitados", "Enviar a aprobación", "Centro de costo", "Presentación"]);
   await page(a, "/cuentas-por-pagar", ["Total por pagar", "Vencido"]);
-  await page(a, "/cotizaciones", ["Cotizaciones", "Nueva cotización"]);
+  await page(a, "/cotizaciones", ["Órdenes de venta", "Nueva cotización"]);
+  await page(a, "/cotizaciones?estado=vigente", ["Órdenes de venta por cobrar"], "órdenes por cobrar");
   await page(a, "/cotizaciones/nueva", ["Productos cotizados", "Emitir cotización"]);
   await page(a, "/cuentas-por-cobrar", ["Total por cobrar", "Vencido"]);
+  await page(a, "/cuentas-por-cobrar/lineas", ["Líneas de crédito", "Línea agotada"]);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(new Date());
   await page(a, `/contabilidad?desde=${today.slice(0, 4)}-01-01`, ["Libro diario", "Ventas - mercaderías", "IGV - Cuenta propia"], "/contabilidad (libro diario)");
   await page(a, "/contabilidad/mayor?cuenta=1011", ["Saldo inicial", "Caja"], "/contabilidad/mayor");
   const balances = await page(a, "/contabilidad/balances", ["Balance de comprobación", "Estado de resultados", "Situación financiera"]);
   report(balances.includes("Cuadra") && !balances.includes("No cuadra"), "situación financiera cuadra");
   await page(a, "/contabilidad/plan", ["Plan de cuentas", "Mercaderías"]);
-  await page(a, "/contabilidad/centros", ["Resultado por sucursal", "Gasto por centro de costo", "Administración"]);
+  await page(a, "/contabilidad/centros", ["Centros de costo", "Administración"]);
+  await page(a, "/contabilidad/centros/reporte", ["Resultado por sucursal", "Gasto por centro de costo"]);
   await page(a, "/inventario/lotes", ["Lotes con stock", "FEFO"]);
   await page(a, "/finanzas", ["Centro de costo"], "/finanzas con centro de costo");
   await page(a, "/contabilidad/periodos", ["Periodos contables", "En curso"]);
@@ -119,15 +129,17 @@ try {
   try { drows = JSON.parse(diario.body).rows; } catch {}
   report(diario.status === 200 && Array.isArray(drows) && drows.length > 1000, "/api/export/diario", drows ? `→ ${drows.length} líneas` : diario.body.slice(0, 80));
   await page(a, "/clientes", ["Crédito", "Contado"], "/clientes con línea de crédito");
-  await page(a, "/compras/nueva", ["Productos de la orden"]);
-  await page(a, "/proveedores", ["Proveedor"]);
-  await page(a, "/finanzas", ["Estado de resultados", "Utilidad bruta"]);
-  await page(a, "/rrhh", ["Planilla mensual", "Comisiones por ventas"]);
+  await page(a, "/compras/nueva", ["Productos de la orden", "Centro de costo", "crédito"]);
+  await page(a, "/proveedores", ["Proveedor", "Crédito"]);
+  await page(a, "/finanzas/resultados", ["Estado de resultados", "Utilidad bruta"]);
+  await page(a, "/rrhh", ["Colaboradores", "Planilla mensual", "Centro de costo"]);
+  await page(a, "/rrhh/comisiones", ["Comisiones por ventas", "Por pagar"]);
+  await page(a, "/rrhh/planilla", ["Pago de planilla", "Pagos registrados"]);
   await page(a, "/reportes", ["Productos más vendidos", "Por categoría"]);
   await page(a, "/configuracion", ["Datos de la empresa"]);
   await page(a, "/configuracion/sucursales", ["Tienda Principal"]);
   await page(a, "/configuracion/usuarios", ["Usuarios del sistema"]);
-  await page(a, "/configuracion/roles", ["Supervisor de Ventas", "Vendedor", "Almacén"]);
+  await page(a, "/configuracion/roles", ["Cajero", "Vendedor", "Comprador", "Auditor", "Empleado", "Exportar matriz"]);
   await page(a, "/configuracion/auditoria", ["Qué hizo", "QA Temporal"].slice(0, 1).concat(["nadie puede editarlo ni borrarlo"]).slice(1));
   const loginRes = await fetch(base + "/login");
   const loginHtml = await loginRes.text();
@@ -156,38 +168,71 @@ try {
   report((sw.headers.get("cache-control") ?? "").includes("no-store"), "service worker sin caché", sw.headers.get("cache-control") ?? "");
 
   console.log("— Exportación —");
-  for (const dataset of ["ventas", "kardex", "compras"]) {
+  for (const dataset of ["ventas", "kardex", "compras", "solicitudes", "cotizaciones", "cierres", "planilla"]) {
     const r = await get(a, `/api/export/${dataset}`);
     let rows = null;
     try { rows = JSON.parse(r.body).rows; } catch {}
-    report(r.status === 200 && Array.isArray(rows) && (dataset === "compras" || rows.length > 0), `/api/export/${dataset}`, rows ? `→ ${rows.length} filas${rows[0] ? " · columnas: " + Object.keys(rows[0]).join(", ") : ""}` : r.body.slice(0, 80));
+    report(r.status === 200 && Array.isArray(rows) && (!["ventas", "kardex"].includes(dataset) || rows.length > 0), `/api/export/${dataset}`, rows ? `→ ${rows.length} filas${rows[0] ? " · columnas: " + Object.keys(rows[0]).join(", ") : ""}` : r.body.slice(0, 80));
   }
   for (const extra of process.argv.slice(4)) await page(a, extra, []);
 
-  console.log("— Vendedor (rol cajero) —");
+  console.log("— Cajero —");
   const c = await login("cajero");
   const home = await page(c, "/", ["Ventas y Distribución"]);
-  report(home.includes('href="/?m=sd"') && !home.includes('href="/?m=fi"'), "inicio del vendedor: ve SD, no ve FI");
-  const sd = await page(c, "/?m=sd&a=ventas", ["Nueva Venta"], "lanzador del vendedor");
-  const basis = await page(c, "/?m=general", ["Calendario"], "General del vendedor");
-  report(sd.includes('href="/pos"') && !basis.includes('href="/configuracion"') && !basis.includes("Roles y Permisos"), "menú del vendedor: ve POS, no ve Configuración");
+  report(home.includes('href="/?m=sd"') && !home.includes('href="/?m=fi"') && !home.includes('href="/?m=mm"'), "inicio del cajero: solo SD y General");
+  const sd = await page(c, "/?m=sd&a=caja", ["Cobrar Órdenes de Venta", "Cobrar Ventas al Crédito"], "lanzador del cajero");
+  const basis = await page(c, "/?m=general", ["Calendario", "Mis Datos"], "General del cajero");
+  report(sd.includes('href="/caja"') && !basis.includes('href="/configuracion"') && !basis.includes("Roles y Permisos"), "menú del cajero: ve su caja, no ve Configuración");
   await page(c, "/pos", ["Punto de venta"]);
-  await page(c, "/cotizaciones/nueva", ["Emitir cotización"], "vendedor cotiza");
-  await denied(c, "/cuentas-por-cobrar");
+  await page(c, "/cotizaciones?estado=vigente", ["Órdenes de venta por cobrar"], "cajero ve órdenes por cobrar");
+  await page(c, "/cuentas-por-cobrar", ["Total por cobrar"], "cajero cobra créditos");
+  await denied(c, "/cuentas-por-cobrar/lineas");
   await denied(c, "/contabilidad");
   const dexp = await get(c, "/api/export/diario");
   report(dexp.status === 403, "vendedor no exporta el libro diario", `status=${dexp.status}`);
   const cli = await get(c, "/clientes");
-  report(cli.status === 200 && !cli.body.includes("Línea de crédito"), "vendedor no ve el campo de línea de crédito");
-  await page(c, "/inventario", ["Productos activos"]);
-  for (const p of ["/finanzas", "/rrhh", "/reportes", "/configuracion", "/configuracion/roles", "/compras", "/compras/solicitudes", "/cuentas-por-pagar", "/proveedores", "/facturacion"]) await denied(c, p);
+  report(cli.status === 200 && !cli.body.includes("Línea de crédito") && !cli.body.includes('aria-label="Editar"'), "cajero no edita clientes ni su línea de crédito");
+  for (const p of ["/inventario", "/inventario/movimientos", "/finanzas", "/rrhh", "/rrhh/planilla", "/reportes", "/configuracion", "/configuracion/roles", "/compras", "/compras/solicitudes", "/cuentas-por-pagar", "/proveedores", "/facturacion"]) await denied(c, p);
+
+  console.log("— Vendedor —");
+  const v = await login("vendedor");
+  const vsd = await page(v, "/?m=sd&a=ventas", ["Nueva Orden de Venta (Cotización)", "Nuevo Cliente"], "lanzador del vendedor");
+  report(!vsd.includes('href="/pos"') && !vsd.includes('href="/caja"'), "vendedor no cobra en caja (no ve Nueva Venta ni Caja)");
+  await page(v, "/cotizaciones/nueva", ["Emitir cotización"], "vendedor cotiza");
+  const vcli = await page(v, "/clientes", ["Nuevo cliente"], "vendedor registra clientes");
+  report(!vcli.includes('aria-label="Editar"'), "vendedor no edita clientes");
+  for (const p of ["/caja", "/inventario", "/cuentas-por-cobrar", "/contabilidad", "/compras"]) await denied(v, p);
 
   console.log("— Almacenero —");
   const w = await login("almacenero");
-  await page(w, "/compras/solicitudes/nueva", ["Productos solicitados"], "almacenero crea solicitudes");
-  const direct = await get(w, "/compras/nueva");
-  report(direct.status === 307 || direct.body.includes("NEXT_REDIRECT"), "almacenero no emite órdenes directas (lo envía a solicitudes)");
-  await denied(w, "/cuentas-por-pagar");
+  const mm = await page(w, "/?m=mm&a=almacen", ["Recepción de Mercadería"], "lanzador del almacenero");
+  report(!mm.includes("Nuevo Proveedor") && !mm.includes("Nueva Solicitud de Pedido"), "almacenero no ve Nuevo proveedor ni Nueva solicitud");
+  await page(w, "/compras?estado=ordenada", ["Recepción de mercadería"], "almacenero ve lo que debe recibir");
+  await page(w, "/inventario/fisico", ["Inventario físico"], "almacenero hace inventario físico");
+  for (const p of ["/compras/solicitudes/nueva", "/proveedores", "/cuentas-por-pagar", "/caja"]) await denied(w, p);
+
+  console.log("— Comprador —");
+  const b = await login("comprador");
+  await page(b, "/?m=mm&a=compras", ["Nuevo Proveedor", "Nueva Solicitud de Pedido", "Nueva Orden de Compra"], "lanzador del comprador");
+  await page(b, "/compras/solicitudes/nueva", ["Productos solicitados"], "comprador crea solicitudes");
+  await denied(b, "/inventario/fisico");
+
+  console.log("— Contador —");
+  const k = await login("contador");
+  const khome = await page(k, "/", ["Finanzas", "Controlling"]);
+  report(!khome.includes('href="/?m=mm"') && !khome.includes('href="/?m=sd"'), "contador ve FI y CO, no MM ni SD");
+  await page(k, "/cuentas-por-cobrar/lineas", ["Líneas de crédito"], "contador asigna líneas de crédito");
+  await denied(k, "/inventario/movimientos");
+
+  console.log("— Recursos humanos y Empleado —");
+  const h = await login("rrhh");
+  await page(h, "/rrhh/planilla", ["Pago de planilla"], "RRHH paga la planilla");
+  await denied(h, "/ventas");
+  const e = await login("empleado");
+  const ehome = await page(e, "/", ["General"]);
+  report(!/href="\/\?m=(mm|sd|fi|co|hcm)"/.test(ehome), "empleado solo ve General (autoservicio)");
+  await page(e, "/mis-datos", ["Mis datos"], "empleado ve sus datos");
+  for (const p of ["/ventas", "/inventario", "/rrhh", "/clientes"]) await denied(e, p);
   const forbidden = await get(c, "/api/export/compras");
   report(forbidden.status === 403, "vendedor no exporta compras", `status=${forbidden.status}`);
   const own = await get(c, "/api/export/ventas");

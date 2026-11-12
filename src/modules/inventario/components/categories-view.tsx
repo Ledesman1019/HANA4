@@ -28,6 +28,15 @@ export function CategoriesView({ rows }: { rows: Category[] }) {
       getId={(c) => c.id}
       searchText={(c) => `${c.name} ${c.description}`}
       isActive={(c) => c.active}
+      exportable={{
+        title: "Categorías",
+        filename: "categorias",
+        columns: [
+          { header: "Categoría", value: (c) => c.name },
+          { header: "Descripción", value: (c) => c.description },
+          { header: "Estado", value: (c) => (c.active ? "Activa" : "Inactiva") },
+        ],
+      }}
     />
   );
 }

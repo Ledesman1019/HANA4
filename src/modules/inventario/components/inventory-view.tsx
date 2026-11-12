@@ -97,6 +97,23 @@ export function InventoryView({
       hint: "Para perecibles: se pide el lote al recibir y se vende primero lo que vence antes.",
       wide: true,
     },
+    {
+      name: "pack_unit",
+      label: "Presentación de compra",
+      type: "select",
+      options: [
+        { value: "CAJA", label: "Caja" },
+        { value: "PAQUETE", label: "Paquete" },
+        { value: "DOCENA", label: "Docena" },
+        { value: "BOLSA", label: "Bolsa" },
+        { value: "FARDO", label: "Fardo" },
+        { value: "SACO", label: "Saco" },
+        { value: "DISPLAY", label: "Display" },
+        { value: "BALDE", label: "Balde" },
+      ],
+      hint: "Cómo lo vende el proveedor. Vacío: se compra por unidad.",
+    },
+    { name: "pack_size", label: "Unidades por presentación", type: "number", step: "1", defaultValue: "1", hint: "Ej. 12 si una caja trae 12 unidades." },
     { name: "description", label: "Descripción", type: "textarea", maxLength: 500 },
   ];
 

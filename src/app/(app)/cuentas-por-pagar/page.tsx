@@ -8,7 +8,6 @@ import { requireAccess } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
 import { INVOICE_STATUS } from "@/modules/cuentas-pagar/types";
 import { addDays, formatDate, formatMoney, todayIn } from "@/lib/utils";
-import { PurchasingTabs } from "@/modules/compras/components/purchasing-tabs";
 import { PayInvoiceButton, ReleaseInvoiceButton, VoidInvoiceButton } from "@/modules/cuentas-pagar/components/invoice-actions";
 
 export const metadata: Metadata = { title: "Cuentas por pagar" };
@@ -100,7 +99,6 @@ export default async function PayablesPage({ searchParams }: PageProps<"/cuentas
           }))}
         />
       </PageHeader>
-      {can("compras", "view") && <PurchasingTabs />}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total por pagar" value={money(sum(open))} icon={<HandCoins className="h-4 w-4" />} hint={`${open.length} ${open.length === 1 ? "factura abierta" : "facturas abiertas"}`} />
