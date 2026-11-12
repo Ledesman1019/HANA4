@@ -1,0 +1,47 @@
+# Integración continua: en cada push y pull request a main verifica que el ERP
+# compile y que se respeten las fronteras de módulos y las reglas de negocio.
+# No usa credenciales: las pruebas de base corren en un Postgres en memoria (PGlite).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, tipos, reglas de negocio y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Valores ficticios: el build no se conecta a Supabase.
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint y fronteras de módulos
+        run: npm run lint
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Reglas de negocio (migraciones + RLS + transacciones)
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build

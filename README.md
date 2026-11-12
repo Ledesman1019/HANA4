@@ -217,6 +217,20 @@ Con el administrador ya creado, ejecuta [`supabase/seed.sql`](supabase/seed.sql)
 2. En **Environment Variables** agrega las tres variables de `.env.local`.
 3. Despliega. Cada `git push` a `main` publica una nueva versión.
 
+## Calidad y pruebas
+
+| Comando | Qué verifica | Necesita |
+|---|---|---|
+| `npm run lint` | Estilo y **fronteras de módulos** (ver [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)) | — |
+| `npm run typecheck` | Tipos de TypeScript, incluidas las rutas tipadas | — |
+| `npm test` | **Más de 200 pruebas de reglas de negocio** en la base. Aplica todas las migraciones y la semilla sobre un Postgres en memoria (PGlite) y prueba permisos por rol (RLS), transacciones, integración entre módulos, contabilidad cuadrada, FEFO y que el stock coincida con el kardex | — |
+| `npm run check` | Las tres anteriores juntas | — |
+| `npm run test:e2e -- <url>` | Contra un servidor real: recorre las rutas con usuarios temporales de varios roles, crea y desactiva registros desde la interfaz y descarga Excel, PDF y CSV. Borra los usuarios y los datos de prueba al terminar | `.env.local` con la clave de servicio, y Chrome o Edge |
+
+**Integración continua:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) ejecuta lint, tipos, reglas de negocio y build en cada push y pull request a `main`. No usa credenciales.
+
+Antes de publicar un cambio de base de datos: escribe la migración compatible con el código publicado, ejecútala en Supabase y luego corre `npm test` y `npm run test:e2e -- http://localhost:3000`. Recién entonces haz push.
+
 ## Alcance y límites
 
 - La facturación electrónica está en **modo demo**: no envía nada a SUNAT y sus comprobantes no tienen validez tributaria (ver arriba cómo pasar a real).
