@@ -1,0 +1,69 @@
+import type { Metadata } from "next";
+import { Badge, Card, CardHeader, Table, Td, Th } from "@/components/ui";
+import { requireAccess } from "@/lib/auth";
+import { fetchAll } from "@/lib/supabase/paginate";
+import { formatDateTime, todayIn } from "@/lib/utils";
+import { PeriodToggle } from "@/modules/contabilidad/components/entry-tools";
+
+export const metadata: Metadata = { title: "Periodos contables" };
+
+type Period = { period: string; closed_at: string | null; closer: { full_name: string } | null };
+
+const monthName = (period: string) =>
+  new Intl.DateTimeFormat("es-PE", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${period}-01T00:00:00Z`));
+
+export default async function PeriodsPage() {
+  const { supabase, settings, can } = await requireAccess("contabilidad", "view");
+  const current = todayIn(settings.timezone).slice(0, 7);
+
+  const [periodsRes, entries] = await Promise.all([
+    supabase.from("accounting_periods").select("period, closed_at, closer:profiles!accounting_periods_closed_by_fkey(full_name)"),
+    fetchAll<{ period: string }>((a, b) => supabase.from("journal_entries").select("period").order("period").order("id").range(a, b), { max: 200_000 }),
+  ]);
+  const stored = new Map(((periodsRes.data ?? []) as unknown as Period[]).map((p) => [p.period, p]));
+  const counts = new Map<string, number>();
+  for (const e of entries) counts.set(e.period, (counts.get(e.period) ?? 0) + 1);
+
+  // Todos los meses desde el primer asiento hasta el actual
+  const first = entries[0]?.period ?? current;
+  const months: string[] = [];
+  for (let [y, m] = first.split("-").map(Number); `${y}-${String(m).padStart(2, "0")}` <= current; m === 12 ? ((y += 1), (m = 1)) : (m += 1)) {
+    months.push(`${y}-${String(m).padStart(2, "0")}`);
+  }
+  months.reverse();
+
+  return (
+    <Card>
+      <CardHeader
+        title="Periodos contables"
+        description="Cerrar un mes impide registrar operaciones con fecha de ese mes: así los libros ya presentados no cambian. El mes en curso siempre está abierto."
+      />
+      <Table>
+        <thead>
+          <tr>
+            <Th>Periodo</Th>
+            <Th className="text-right">Asientos</Th>
+            <Th>Estado</Th>
+            <Th>Cerrado por</Th>
+            {can("contabilidad", "edit") && <Th className="w-px" />}
+          </tr>
+        </thead>
+        <tbody>
+          {months.map((period) => {
+            const p = stored.get(period);
+            const closed = Boolean(p?.closed_at);
+            return (
+              <tr key={period}>
+                <Td className="font-medium capitalize text-slate-900">{monthName(period)}</Td>
+                <Td className="tabular text-right">{counts.get(period) ?? 0}</Td>
+                <Td>{period === current ? <Badge tone="blue">En curso</Badge> : closed ? <Badge tone="neutral">Cerrado</Badge> : <Badge tone="green">Abierto</Badge>}</Td>
+                <Td className="text-slate-500">{closed ? `${p?.closer?.full_name ?? "—"} · ${formatDateTime(p?.closed_at, settings.timezone)}` : "—"}</Td>
+                {can("contabilidad", "edit") && <Td className="text-right">{period !== current && <PeriodToggle period={period} label={monthName(period)} closed={closed} />}</Td>}
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </Card>
+  );
+}

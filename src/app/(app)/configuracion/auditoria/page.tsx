@@ -19,6 +19,7 @@ const AREAS: Record<string, { label: string; tone: BadgeTone }> = {
   compra: { label: "Compras", tone: "neutral" },
   pago: { label: "Pagos", tone: "amber" },
   cobro: { label: "Crédito y cobranza", tone: "green" },
+  contabilidad: { label: "Contabilidad", tone: "blue" },
   caja: { label: "Caja", tone: "amber" },
   personal: { label: "Personal", tone: "neutral" },
   empresa: { label: "Empresa", tone: "neutral" },

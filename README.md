@@ -19,6 +19,7 @@ Sistema de gestión para empresas de venta minorista. Unifica **ventas, caja, in
 | **Cuentas por pagar** | Facturas de proveedor verificadas contra la orden, bloqueo por diferencias, pagos totales o parciales, vencimientos. |
 | **Proveedores** | Padrón de proveedores. |
 | **Finanzas** | Estado de resultados mensual y registro de gastos por categoría. |
+| **Contabilidad** | Plan de cuentas (PCGE), asientos automáticos de cada operación, libro diario, libro mayor, balance de comprobación, estado de resultados, situación financiera, asientos manuales y cierre de periodos. |
 | **Personal** | Colaboradores, cargos, estado y planilla mensual. |
 | **Reportes** | Ventas por día, categoría, medio de pago, vendedor y sucursal; top de productos; exportación CSV. |
 | **Configuración** | Empresa, impuesto y moneda, sucursales, usuarios, **roles y matriz de permisos**. |
@@ -121,9 +122,29 @@ Cotización → Venta (contado o crédito) → Comprobante → Cobro
 - **Crédito:** solo a clientes con línea asignada. Antes de vender se verifica que la venta no supere el disponible y que el cliente no tenga deuda vencida. Solo quien tiene Cuentas por cobrar · Editar asigna o cambia una línea, y queda en la auditoría.
 - **Cobro:** total o parcial. En efectivo entra a la caja abierta de quien cobra, así el arqueo cuadra. Una venta al crédito con cobros no se puede anular.
 
+### Contabilidad (modelo SAP FI)
+
+Cada operación genera su asiento en el mismo instante en que se registra, dentro de la misma transacción: si el asiento no cuadra, la operación no se guarda.
+
+| Operación | Asiento |
+|---|---|
+| Venta al contado | Caja o bancos / Ventas + IGV; y Costo de ventas / Mercaderías |
+| Venta al crédito | Cuentas por cobrar / Ventas + IGV; y su costo |
+| Cobro a cliente | Caja o bancos / Cuentas por cobrar |
+| Recepción de compra | Mercaderías / Mercadería recibida por facturar |
+| Factura de proveedor | Recibido por facturar + IGV (crédito fiscal) / Cuentas por pagar; la diferencia con la orden va a resultados |
+| Pago a proveedor | Cuentas por pagar / Caja o bancos |
+| Gasto | Cuenta de gasto según categoría / Caja o bancos |
+| Comisión | Comisiones / Remuneraciones por pagar |
+| Merma o sobrante de inventario, diferencia de caja | Contra otros gastos u otros ingresos de gestión |
+
+Una anulación genera el **extorno** (asiento inverso); nada se borra. Al cerrar un mes, nadie puede registrar operaciones con fecha de ese mes. La migración contabiliza también el historial existente.
+
+No se contabilizan solos los ingresos y retiros manuales de caja ni las transferencias entre sucursales: el contador los registra con un asiento manual si corresponde.
+
 ### Códigos de transacción
 
-Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `VA21` nueva cotización, `VA25` cotizaciones, `FBL5N` cuentas por cobrar, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
+Cada pantalla tiene un código al estilo SAP que se escribe en el buscador (`Ctrl K`) para ir directo: `VA01` vender, `VA05` ventas, `VF05` facturación, `MMBE` stock, `MB51` kardex, `ME51N` nueva solicitud, `ME5A` solicitudes, `ME21N` nueva orden, `ME2N` órdenes, `FBL1N` cuentas por pagar, `VA21` nueva cotización, `VA25` cotizaciones, `FBL5N` cuentas por cobrar, `FB03` libro diario, `FAGLL03` libro mayor, `F.08` balances, `FS00` plan de cuentas, `FB50` asiento manual, `OB52` periodos, `FBCJ` caja, `PA20` personal, `SU01` usuarios, `PFCG` roles, `SM20` auditoría.
 
 ### Transacciones
 
@@ -163,6 +184,7 @@ Los precios y totales se calculan en la base de datos; el navegador nunca los en
    4. [`supabase/migrations/0004_superadmin_auditoria_comisiones.sql`](supabase/migrations/0004_superadmin_auditoria_comisiones.sql)
    5. [`supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql`](supabase/migrations/0005_ciclo_compras_cuentas_por_pagar.sql)
    6. [`supabase/migrations/0006_cotizaciones_credito_cuentas_por_cobrar.sql`](supabase/migrations/0006_cotizaciones_credito_cuentas_por_cobrar.sql)
+   7. [`supabase/migrations/0007_contabilidad.sql`](supabase/migrations/0007_contabilidad.sql)
 3. En **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Las cuentas se crean desde el sistema.
 
 ### 2. Variables de entorno

@@ -4,7 +4,7 @@
  * añadir una entrada aquí, su carpeta en src/modules y su ruta en src/app.
  */
 
-export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "cuentas_cobrar" | "inventario" | "compras" | "proveedores" | "cuentas_pagar" | "finanzas" | "rrhh" | "reportes" | "configuracion";
+export type ModuleKey = "ventas" | "facturacion" | "caja" | "clientes" | "cuentas_cobrar" | "inventario" | "compras" | "proveedores" | "cuentas_pagar" | "finanzas" | "contabilidad" | "rrhh" | "reportes" | "configuracion";
 export type Action = "view" | "create" | "edit" | "delete";
 export type Permissions = Partial<Record<ModuleKey, Partial<Record<Action, boolean>>>>;
 
@@ -116,6 +116,16 @@ export const MODULES: ModuleDef[] = [
     actions: { view: "Ver estado de resultados y gastos", create: "Registrar gastos", edit: "Modificar gastos", delete: "Eliminar gastos" },
   },
   {
+    key: "contabilidad",
+    label: "Contabilidad",
+    area: "Contabilidad",
+    actions: {
+      view: "Ver libro diario, mayor y balances",
+      create: "Registrar y extornar asientos manuales",
+      edit: "Cerrar y reabrir periodos contables",
+    },
+  },
+  {
     key: "reportes",
     label: "Reportes",
     area: "Contabilidad",
@@ -163,6 +173,7 @@ export const NAV: NavItem[] = [
   { href: "/cuentas-por-cobrar", label: "Cuentas por cobrar", desc: "Ventas al crédito y cobranza", icon: "receivables", code: "FBL5N", group: "Gestión", module: "cuentas_cobrar", needs: "view" },
   { href: "/cuentas-por-pagar", label: "Cuentas por pagar", desc: "Facturas y pagos a proveedores", icon: "payables", code: "FBL1N", group: "Gestión", module: "cuentas_pagar", needs: "view" },
   { href: "/finanzas", label: "Finanzas", desc: "Resultados y gastos", icon: "finance", code: "F.01", group: "Gestión", module: "finanzas", needs: "view" },
+  { href: "/contabilidad", label: "Contabilidad", desc: "Libro diario, mayor y balances", icon: "ledger", code: "FB03", group: "Gestión", module: "contabilidad", needs: "view" },
   { href: "/rrhh", label: "Personal", desc: "Colaboradores y planilla", icon: "hr", code: "PA20", group: "Gestión", module: "rrhh", needs: "view" },
   { href: "/reportes", label: "Reportes", desc: "Análisis y exportación", icon: "reports", code: "MCTA", group: "Gestión", module: "reportes", needs: "view" },
   { href: "/configuracion", label: "Configuración", desc: "Empresa, usuarios y roles", icon: "settings", code: "SPRO", group: "Gestión", module: "configuracion", needs: "view" },
@@ -170,6 +181,11 @@ export const NAV: NavItem[] = [
 
 /** Pantallas internas con código propio (no aparecen en el menú, sí en el buscador). */
 export const SHORTCUTS: NavItem[] = [
+  { href: "/contabilidad/mayor", label: "Libro mayor", desc: "Movimientos y saldo de una cuenta", icon: "ledger", code: "FAGLL03", group: "Gestión", module: "contabilidad", needs: "view" },
+  { href: "/contabilidad/balances", label: "Balances", desc: "Comprobación, resultados y situación", icon: "ledger", code: "F.08", group: "Gestión", module: "contabilidad", needs: "view" },
+  { href: "/contabilidad/plan", label: "Plan de cuentas", desc: "Cuentas contables (PCGE)", icon: "ledger", code: "FS00", group: "Gestión", module: "contabilidad", needs: "view" },
+  { href: "/contabilidad/periodos", label: "Periodos contables", desc: "Cierre de meses", icon: "ledger", code: "OB52", group: "Gestión", module: "contabilidad", needs: "view" },
+  { href: "/contabilidad/asiento", label: "Asiento manual", desc: "Registrar un asiento contable", icon: "ledger", code: "FB50", group: "Gestión", module: "contabilidad", needs: "create" },
   { href: "/cotizaciones/nueva", label: "Nueva cotización", desc: "Oferta de venta a un cliente", icon: "quotes", code: "VA21", group: "Ventas", module: "ventas", needs: "create" },
   { href: "/inventario/movimientos", label: "Kardex", desc: "Movimientos de almacén", icon: "inventory", code: "MB51", group: "Logística", module: "inventario", needs: "view" },
   { href: "/compras/solicitudes", label: "Solicitudes de pedido", desc: "Pedidos internos por aprobar", icon: "purchases", code: "ME5A", group: "Logística", module: "compras", needs: "view" },

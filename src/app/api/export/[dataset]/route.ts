@@ -158,6 +158,40 @@ async function facturacion(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
   }));
 }
 
+async function diario(ctx: AppContext, sp: Params): Promise<ExportRow[]> {
+  const tz = ctx.settings.timezone;
+  const to = isIsoDate(sp.get("hasta")) ? sp.get("hasta")! : todayIn(tz);
+  const from = isIsoDate(sp.get("desde")) ? sp.get("desde")! : `${to.slice(0, 7)}-01`;
+  const source = clean(sp.get("origen"), 30);
+  type Row = { id: number; account_code: string; debit: number; credit: number; account: { name: string } | null; entry: { number: string; entry_date: string; description: string } };
+
+  const rows = await fetchAll<Row>(
+    (a, b) => {
+      let query = ctx.supabase
+        .from("journal_lines")
+        .select("id, account_code, debit, credit, account:accounts(name), entry:journal_entries!inner(number, entry_date, description, source_type)")
+        .gte("entry.entry_date", from)
+        .lte("entry.entry_date", to)
+        .order("id");
+      if (source) query = query.eq("entry.source_type", source);
+      return query.range(a, b);
+    },
+    { max: MAX_ROWS * 3 },
+  );
+
+  return rows
+    .sort((x, y) => x.entry.entry_date.localeCompare(y.entry.entry_date) || x.entry.number.localeCompare(y.entry.number) || Number(y.debit) - Number(x.debit) || x.id - y.id)
+    .map((l) => ({
+      asiento: l.entry.number,
+      fecha: l.entry.entry_date,
+      glosa: l.entry.description,
+      cuenta: l.account_code,
+      denominacion: l.account?.name ?? "",
+      debe: Number(l.debit) || null,
+      haber: Number(l.credit) || null,
+    }));
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ dataset: string }> }) {
   const ctx = await loadContext();
   if (ctx.status !== "ok") return NextResponse.json({ rows: [] }, { status: 401 });
@@ -170,6 +204,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   else if (dataset === "kardex" && ctx.can("inventario", "view")) rows = await kardex(ctx, sp);
   else if (dataset === "compras" && ctx.can("compras", "view")) rows = await compras(ctx);
   else if (dataset === "facturacion" && ctx.can("facturacion", "view")) rows = await facturacion(ctx, sp);
+  else if (dataset === "diario" && ctx.can("contabilidad", "view")) rows = await diario(ctx, sp);
   else return NextResponse.json({ rows: [] }, { status: 403 });
 
   return NextResponse.json({ rows }, { headers: { "Cache-Control": "private, no-store" } });
