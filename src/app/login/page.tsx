@@ -25,7 +25,7 @@ export default function LoginPage() {
       {/* Ventana de acceso, arriba a la izquierda como en los ERP de escritorio */}
       <section
         aria-labelledby="login-title"
-        className="relative z-20 mx-4 mt-4 w-auto rounded-[4px] border border-white/70 bg-[#f3f5f8] text-slate-900 shadow-[0_18px_50px_-12px_rgb(0_0_0/0.55)] sm:absolute sm:left-6 sm:top-6 sm:mx-0 sm:mt-0 sm:w-80"
+        className="force-light relative z-20 mx-4 mt-4 w-auto rounded-[4px] border border-white/70 bg-[#f3f5f8] text-slate-900 shadow-[0_18px_50px_-12px_rgb(0_0_0/0.55)] sm:absolute sm:left-6 sm:top-6 sm:mx-0 sm:mt-0 sm:w-80"
       >
         <h1 id="login-title" className="border-b border-slate-300 bg-gradient-to-b from-white to-slate-100 px-3 py-2 text-center text-[13px] font-semibold text-slate-800">
           Información de Usuario

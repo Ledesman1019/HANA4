@@ -258,3 +258,29 @@ dialog[open] {
 .desk-tile {
   background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.045) 0 2px, transparent 2px 9px);
 }
+/* ---------- Ventana de login: siempre en claro (aunque el sistema use modo oscuro) ---------- */
+.force-light {
+  color-scheme: light;
+  --color-surface: #ffffff;
+  --color-link: #1d41d8;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  color: #0f172a;
+}
+.force-light input {
+  color: #0f172a;
+  caret-color: #1d4ed8;
+}
+.force-light input:-webkit-autofill,
+.force-light input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a;
+  -webkit-box-shadow: 0 0 0 40px #eef4ff inset;
+}
