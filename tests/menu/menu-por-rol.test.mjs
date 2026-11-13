@@ -20,7 +20,7 @@ const compile = (src, dest, rewrite = (s) => s) => {
 compile("src/lib/modules.ts", "modules.mjs");
 const lucide = pathToFileURL(require.resolve("lucide-react")).href;
 compile("src/shell/menu.ts", "menu.mjs", (s) => s.replace('"@/lib/modules"', '"./modules.mjs"').replace('"lucide-react"', JSON.stringify(lucide)));
-const { menuFor } = await import(pathToFileURL(join(out, "menu.mjs")).href);
+const { menuFor, backHref, locate, launcherHref } = await import(pathToFileURL(join(out, "menu.mjs")).href);
 
 // --- Matriz de permisos de la migración 0009 ---
 const migration = readdirSync(join(root, "supabase/migrations")).find((f) => f.startsWith("0009_"));
@@ -87,5 +87,22 @@ for (const m of menuFor("admin", {})) for (const a of m.areas) {
 }
 ok("sin mosaicos repetidos en un área", dupes.length === 0, dupes.join(", "));
 
+
+// «Atrás» independiente: cada pantalla del menú vuelve a los mosaicos de su área,
+// no a otra pantalla cuya ruta la contenga (ej. Kardex /inventario/movimientos ≠ Listado /inventario)
+const wrongBack = [];
+for (const role of Object.keys(EXPECTED)) {
+  const menu = menus[role];
+  const launchers = menu.flatMap((mm) => mm.areas.map((aa) => launcherHref(mm.key, aa.key)));
+  for (const m of menu) for (const a of m.areas) for (const t of a.tiles) {
+    const path = t.href.split("?")[0];
+    if (!path.startsWith("/") || path === "/") continue;
+    const back = backHref(menu, path, locate(menu, path));
+    if (!launchers.includes(back)) wrongBack.push(role + ": " + t.label + " (" + path + ") → " + back);
+  }
+}
+ok("Atrás de cada mosaico vuelve a su área (no a otra pantalla)", wrongBack.length === 0, wrongBack.slice(0, 5).join(" | "));
+ok("Atrás del Kardex vuelve a MM › Inventario", backHref(menus.admin, "/inventario/movimientos", locate(menus.admin, "/inventario/movimientos")) === launcherHref("mm", "inventario"));
+ok("Atrás de un detalle vuelve a su listado", backHref(menus.admin, "/inventario/conteos/abc", locate(menus.admin, "/inventario/conteos/abc")) === "/inventario/conteos");
 console.log(failed ? `\n${failed} PRUEBAS FALLARON` : "\nMENÚ POR ROL OK");
 process.exit(failed ? 1 : 0);

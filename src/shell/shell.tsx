@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useApp } from "@/components/app-provider";
-import { launcherHref, locate, menuFor } from "./menu";
+import { backHref, launcherHref, locate, menuFor } from "./menu";
 import { Taskbar } from "./taskbar";
 
 /**
@@ -39,9 +39,7 @@ export function Shell({ children }: { children: ReactNode }) {
  */
 function BackBar({ pathname, menu }: { pathname: string; menu: ReturnType<typeof menuFor> }) {
   const place = locate(menu, pathname);
-  const tilePath = place?.area.tiles.map((t) => t.href.split("?")[0]).find((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const isDetail = Boolean(tilePath && pathname !== tilePath);
-  const href = isDetail ? tilePath! : place ? launcherHref(place.module.key, place.area.key) : launcherHref();
+  const href = backHref(menu, pathname, place);
 
   return (
     <div className="no-print mx-auto flex w-full max-w-[1400px] items-center gap-3 px-4 pt-4 sm:px-6 lg:px-8">

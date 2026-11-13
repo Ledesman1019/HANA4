@@ -342,3 +342,18 @@ export function locate(menu: SapModule[], pathname: string): { module: SapModule
   }
   return best && { module: best.module, area: best.area };
 }
+
+/**
+ * Destino de «Atrás». Cada pantalla del menú es independiente: si la ruta es un
+ * mosaico (ej. Kardex en /inventario/movimientos), vuelve a los mosaicos de su
+ * área, aunque su ruta empiece como la de otro mosaico (Listado en /inventario).
+ * Solo un detalle que no es mosaico (ej. /ventas/123) vuelve a su listado: el
+ * mosaico con la ruta más larga que la contiene.
+ */
+export function backHref(menu: SapModule[], pathname: string, place: ReturnType<typeof locate>) {
+  const paths = menu.flatMap((m) => m.areas.flatMap((a) => a.tiles.map((t) => t.href.split("?")[0]))).filter((p) => p.startsWith("/") && p !== "/");
+  const isTile = paths.includes(pathname);
+  const parent = isTile ? undefined : paths.filter((p) => pathname.startsWith(`${p}/`)).sort((x, y) => y.length - x.length)[0];
+  if (parent) return parent;
+  return place ? launcherHref(place.module.key, place.area.key) : launcherHref();
+}
