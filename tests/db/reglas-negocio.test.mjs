@@ -802,6 +802,41 @@ await as(cajero);
 await fails("el cajero no emite notas de crédito", "select issue_partial_credit_note($1,$2::jsonb,'Producto con falla')", [ncSale, JSON.stringify([{ product_id: ncProds[1].id, quantity: 1 }])], "no puede emitir");
 await sudo();
 
+// --- 0013: reportes netos de devoluciones y comisiones ya pagadas ---
+await sudo();
+const today13 = (await q("select (now() at time zone 'America/Lima')::date::text d"))[0].d;
+const salesDay = async () => Number((await q("select total from report_sales_by_day($1::date,$1::date,$2)", [today13, branch]))[0].total);
+const topQty = async (pid) => Number((await q("select quantity from report_top_products($1::date,$1::date,$2,1000) where product_id=$3", [today13, branch, pid]))[0]?.quantity ?? 0);
+const before13 = await salesDay();
+const topBefore = await topQty(ncProds[0].id);
+const ncToday = Number((await q("select coalesce(sum(total),0) t from e_documents where kind='nota_credito' and scope='parcial' and branch_id=$1", [branch]))[0].t);
+const ncQtyA = Number((await q("select coalesce(sum(ci.quantity),0) q from credit_note_items ci where ci.product_id=$1", [ncProds[0].id]))[0].q);
+await db.exec(readFileSync(`${root}/supabase/migrations/0013_reportes_netos_comisiones.sql`, "utf8"));
+ok("schema_version = 13", (await q("select schema_version() v"))[0].v === 13);
+ok("reporte por día descuenta las notas de crédito parciales", Math.abs(before13 - ncToday - (await salesDay())) < 0.01, `${before13} → ${await salesDay()} (notas ${ncToday})`);
+ok("productos más vendidos descuentan lo devuelto", Math.abs((await topQty(ncProds[0].id)) - (topBefore - ncQtyA)) < 0.001, `${topBefore} → ${await topQty(ncProds[0].id)}`);
+const brk = await q("select sum(total) t from report_sales_breakdown($1::date,$1::date,$2,'payment_method')", [today13, branch]);
+ok("desglose por medio de pago cuadra con el total del día", Math.abs(Number(brk[0].t) - (await salesDay())) < 0.01);
+
+// Comisión ya pagada: la devolución deja un ajuste negativo para la próxima planilla
+const vPaid = (await q("select payroll_id from commissions where sale_id=$1 and kind='venta'", [vSale]))[0];
+ok("la comisión de la venta del vendedor ya está pagada", vPaid?.payroll_id != null);
+const vItem = (await q("select product_id, quantity from sale_items where sale_id=$1 order by product_id limit 1", [vSale]))[0];
+await as(ncUser);
+await q("select issue_e_document($1)", [vSale]);
+await q("select issue_partial_credit_note($1,$2::jsonb,'Cliente devolvió un producto','tarjeta')", [vSale, JSON.stringify([{ product_id: vItem.product_id, quantity: 1 }])]);
+await sudo();
+const adj = (await q("select amount, payroll_id, kind from commissions where sale_id=$1 and kind='ajuste'", [vSale]))[0];
+ok("comisión pagada: queda un ajuste negativo pendiente", adj && Number(adj.amount) < 0 && adj.payroll_id === null, JSON.stringify(adj));
+ok("comisión pagada: el ajuste se contabiliza al revés", (await q("select 1 from journal_lines l join journal_entries e on e.id=l.entry_id join commissions c on c.id::text=e.source_id where c.kind='ajuste' and l.account_code='4111' and l.debit > 0")).length === 1);
+await as(contUser);
+const prevPay = (await q("select id, commissions from payroll_payments where employee_id=$1 and period=$2 and status='pagado'", [vendEmp, period]))[0];
+await db.query("select void_payroll_payment($1,'Recalcular comisiones')", [prevPay.id]);
+await q("select pay_payroll($1,$2::uuid[],'transferencia',$3::date,'Con ajuste')", [period, [vendEmp], payDay]);
+const newPay = (await q("select commissions from payroll_payments where employee_id=$1 and period=$2 and status='pagado'", [vendEmp, period]))[0];
+ok("la próxima planilla descuenta el ajuste", Math.abs(Number(newPay.commissions) - (Number(prevPay.commissions) + Number(adj.amount))) < 0.01, `${prevPay.commissions} → ${newPay.commissions}`);
+await sudo();
+
 ok("final: todos los asientos cuadran", (await q("select entry_id from journal_lines group by entry_id having sum(debit) <> sum(credit)")).length === 0);
 const drift2 = await q(`select count(*) c from stock s where quantity <> (select sum(quantity) from stock_movements m where m.product_id=s.product_id and m.branch_id=s.branch_id)`);
 ok("final: stock = suma de kardex", Number(drift2[0].c) === 0);

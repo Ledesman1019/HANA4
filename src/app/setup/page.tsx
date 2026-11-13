@@ -25,6 +25,7 @@ const UPDATES: [version: number, file: string, what: string][] = [
   [10, "0010_rls_tools.sql", "RLS Tools: ubicaciones de almacén e inventarios desde el celular"],
   [11, "0011_transferencias_retornos.sql", "RLS Tools: transferencias en tránsito entre tiendas y retornos a proveedor"],
   [12, "0012_tesoreria_notas_credito.sql", "planilla pagada por Tesorería y notas de crédito parciales"],
+  [13, "0013_reportes_netos_comisiones.sql", "reportes netos de devoluciones y ajuste de comisiones ya pagadas"],
 ];
 
 export default function SetupPage() {

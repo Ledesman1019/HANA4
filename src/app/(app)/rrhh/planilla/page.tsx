@@ -40,7 +40,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/rrhh/pla
   const from = `${period}-01`;
   const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
 
-  const [employeesRes, paymentsRes, commissions] = await Promise.all([
+  const [employeesRes, paymentsRes, commissions, carried] = await Promise.all([
     supabase.from("employees").select("*").neq("status", "cesado").order("full_name").limit(1000),
     supabase
       .from("payroll_payments")
@@ -57,12 +57,16 @@ export default async function PayrollPage({ searchParams }: PageProps<"/rrhh/pla
         .lt("created_at", zonedDayStart(next, tz))
         .range(a, b),
     ),
+    // Ajustes de meses anteriores (devoluciones de ventas cuya comisión ya se pagó): se descuentan en esta planilla
+    fetchAll<{ employee_id: string; amount: number }>((a, b) =>
+      supabase.from("commissions").select("employee_id, amount").eq("kind", "ajuste").eq("status", "generada").is("payroll_id", null).lt("created_at", zonedDayStart(from, tz)).range(a, b),
+    ),
   ]);
   const employees = (employeesRes.data ?? []) as Employee[];
   const payments = (paymentsRes.data ?? []) as unknown as Payment[];
   const paidBy = new Map(payments.filter((p) => p.status === "pagado").map((p) => [p.employee_id, p]));
   const pendingCommission = new Map<string, number>();
-  for (const c of commissions) pendingCommission.set(c.employee_id, (pendingCommission.get(c.employee_id) ?? 0) + Number(c.amount));
+  for (const c of [...commissions, ...carried]) pendingCommission.set(c.employee_id, (pendingCommission.get(c.employee_id) ?? 0) + Number(c.amount));
 
   const lines: PayrollLine[] = employees.map((e) => {
     const paid = paidBy.get(e.id);
