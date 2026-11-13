@@ -747,6 +747,61 @@ await fails("comprador no envía transferencias", "select rls_send_transfer($1,$
 ok("comprador consulta los retornos", (await q("select * from supplier_returns")).length === 1);
 await sudo();
 
+// --- 0012: planilla pagada por Tesorería y notas de crédito parciales ---
+await sudo();
+await db.exec(readFileSync(`${root}/supabase/migrations/0012_tesoreria_notas_credito.sql`, "utf8"));
+ok("schema_version = 12", (await q("select schema_version() v"))[0].v === 12);
+const tesEmp = (await q("select e.id from employees e where e.status <> 'cesado' and e.salary > 0 and not exists (select 1 from payroll_payments p where p.employee_id = e.id and p.period = $1 and p.status = 'pagado') order by e.full_name limit 1", [period]))[0]?.id;
+await as(hrUser);
+await fails("RRHH ya no paga la planilla (lo hace Tesorería)", "select pay_payroll($1,$2::uuid[],'transferencia',$3::date)", [period, [tesEmp], payDay], "Tesorería");
+ok("RRHH sigue viendo la planilla", (await q("select id from employees")).length > 0);
+await as(contUser);
+ok("Tesorería (contador) ve a quién paga", (await q("select id from employees where id=$1", [tesEmp])).length === 1);
+ok("Tesorería paga la planilla", (await q("select pay_payroll($1,$2::uuid[],'transferencia',$3::date,'Pago por Tesorería') n", [period, [tesEmp], payDay]))[0].n === 1);
+const tesPay = (await q("select id from payroll_payments where employee_id=$1 and period=$2 and status='pagado'", [tesEmp, period]))[0];
+await as(hrUser);
+await fails("RRHH no anula pagos de planilla", "select void_payroll_payment($1,'Error de monto')", [tesPay.id], "Tesorería");
+await as(contUser);
+await db.query("select void_payroll_payment($1,'Error de monto')", [tesPay.id]);
+ok("Tesorería anula el pago", (await q("select status from payroll_payments where id=$1", [tesPay.id]))[0].status === "anulado");
+
+// Nota de crédito parcial
+await sudo();
+const ncUser = await mk("caja-nc@erp.test");
+await as(admin);
+await grant(ncUser, "admin");
+await sudo();
+const ncProds = await q("select p.id, p.price from products p join stock s on s.product_id = p.id and s.branch_id = $1 where p.active and not p.track_lots and s.quantity >= 10 order by p.sku limit 2", [branch]);
+const ncStock = async (pid) => Number((await q("select quantity from stock where product_id=$1 and branch_id=$2", [pid, branch]))[0].quantity);
+await as(ncUser);
+const ncSession = (await q("select open_cash_session($1, 500) id", [branch]))[0].id;
+const ncItems = JSON.stringify(ncProds.map((p) => ({ product_id: p.id, quantity: 3 })));
+const ncSale = (await q("select create_sale($1,null,'boleta','efectivo',1000,0,$2::jsonb) id", [branch, ncItems]))[0].id;
+await fails("sin comprobante no hay nota de crédito", "select issue_partial_credit_note($1,$2::jsonb,'Producto con falla')", [ncSale, JSON.stringify([{ product_id: ncProds[0].id, quantity: 1 }])], "no tiene comprobante");
+await q("select issue_e_document($1)", [ncSale]);
+const a0 = await ncStock(ncProds[0].id);
+const b0 = await ncStock(ncProds[1].id);
+const cash0 = Number((await q("select cash_session_expected($1) v", [ncSession]))[0].v);
+await fails("nota de crédito exige motivo", "select issue_partial_credit_note($1,$2::jsonb,'')", [ncSale, JSON.stringify([{ product_id: ncProds[0].id, quantity: 1 }])], "motivo");
+await fails("no se devuelve más de lo vendido", "select issue_partial_credit_note($1,$2::jsonb,'Producto con falla')", [ncSale, JSON.stringify([{ product_id: ncProds[0].id, quantity: 4 }])], "Solo quedan 3");
+const nc1 = (await q("select issue_partial_credit_note($1,$2::jsonb,'Producto con falla') id", [ncSale, JSON.stringify([{ product_id: ncProds[0].id, quantity: 2 }])]))[0].id;
+const nc1Doc = (await q("select number, scope, total from e_documents where id=$1", [nc1]))[0];
+const expected1 = Math.round(2 * Number(ncProds[0].price) * 100) / 100;
+ok("nota de crédito parcial: solo lo devuelto", nc1Doc.scope === "parcial" && nc1Doc.number.startsWith("BC") && Math.abs(Number(nc1Doc.total) - expected1) < 0.01, `${nc1Doc.number} ${nc1Doc.total}`);
+ok("nota de crédito parcial: reingresa solo ese stock", (await ncStock(ncProds[0].id)) === a0 + 2 && (await ncStock(ncProds[1].id)) === b0);
+ok("nota de crédito parcial: el efectivo sale de la caja", Math.abs(Number((await q("select cash_session_expected($1) v", [ncSession]))[0].v) - (cash0 - expected1)) < 0.01);
+await fails("una segunda nota no supera lo que queda", "select issue_partial_credit_note($1,$2::jsonb,'Otra falla')", [ncSale, JSON.stringify([{ product_id: ncProds[0].id, quantity: 2 }])], "Solo quedan 1");
+await q("select issue_partial_credit_note($1,$2::jsonb,'Otra falla','yape')", [ncSale, JSON.stringify([{ product_id: ncProds[0].id, quantity: 1 }])]);
+ok("varias notas parciales en una venta", Number((await q("select count(*) c from e_documents where sale_id=$1 and kind='nota_credito'", [ncSale]))[0].c) === 2);
+await fails("con devoluciones parciales la venta no se anula entera", "select void_sale($1,'Cliente se arrepintió')", [ncSale], "devoluciones parciales");
+await sudo();
+const ncLines = await q("select l.account_code, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_type='nota_credito' and e.source_id=$1", [nc1]);
+const nd = (acc) => ncLines.filter((l) => l.account_code === acc).reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0);
+ok("nota de crédito: revierte ingreso + IGV contra caja, y el costo", Math.abs(nd("7011") + nd("40111") - expected1) < 0.01 && Math.abs(nd("1011") + expected1) < 0.01 && nd("2011") > 0 && nd("6911") < 0, JSON.stringify(ncLines));
+await as(cajero);
+await fails("el cajero no emite notas de crédito", "select issue_partial_credit_note($1,$2::jsonb,'Producto con falla')", [ncSale, JSON.stringify([{ product_id: ncProds[1].id, quantity: 1 }])], "no puede emitir");
+await sudo();
+
 ok("final: todos los asientos cuadran", (await q("select entry_id from journal_lines group by entry_id having sum(debit) <> sum(credit)")).length === 0);
 const drift2 = await q(`select count(*) c from stock s where quantity <> (select sum(quantity) from stock_movements m where m.product_id=s.product_id and m.branch_id=s.branch_id)`);
 ok("final: stock = suma de kardex", Number(drift2[0].c) === 0);

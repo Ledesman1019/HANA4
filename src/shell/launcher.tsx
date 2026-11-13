@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-provider";
 import { BrandMark } from "@/components/brand";
 import { launcherHref, menuFor, type Tile } from "./menu";
+import { setMenuContext } from "./menu-context";
 import { openWindow } from "./taskbar";
 
 const tileBase =
@@ -33,7 +34,7 @@ export function Launcher({ moduleKey, areaKey }: { moduleKey?: string; areaKey?:
             </Link>
             <div className="mx-auto flex max-w-[1480px] flex-wrap justify-center gap-2.5">
               {area.tiles.map((tile) => (
-                <FunctionTile key={tile.label} tile={tile} caption={area.label} />
+                <FunctionTile key={tile.label} tile={tile} caption={area.label} onOpen={() => setMenuContext(sapModule.key, area.key)} />
               ))}
             </div>
           </>
@@ -68,7 +69,7 @@ export function Launcher({ moduleKey, areaKey }: { moduleKey?: string; areaKey?:
   );
 }
 
-function FunctionTile({ tile, caption }: { tile: Tile; caption: string }) {
+function FunctionTile({ tile, caption, onOpen }: { tile: Tile; caption: string; onOpen: () => void }) {
   const className = cn(tileBase, "h-[120px] w-[calc(50%-5px)] p-3 text-left sm:w-[228px]");
   const body = (
     <>
@@ -87,7 +88,7 @@ function FunctionTile({ tile, caption }: { tile: Tile; caption: string }) {
     );
   }
   return (
-    <Link href={tile.href} className={className}>
+    <Link href={tile.href} className={className} onClick={onOpen}>
       {body}
     </Link>
   );

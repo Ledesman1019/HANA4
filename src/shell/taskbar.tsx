@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useApp } from "@/components/app-provider";
 import { AboutDialog, PasswordDialog, PreferencesDialog } from "./dialogs";
 import { launcherHref, locate, type SapModule } from "./menu";
+import { useMenuContext } from "./menu-context";
 import { SearchPalette } from "./search-palette";
 import type { AlertItem } from "./types";
 
@@ -55,7 +56,8 @@ export function Taskbar({ menu }: { menu: SapModule[] }) {
   const time = useClock(settings.timezone);
 
   // Contexto actual: módulo y área del lanzador, o de la pantalla abierta.
-  const located = pathname === "/" ? null : locate(menu, pathname);
+  const context = useMenuContext();
+  const located = pathname === "/" ? null : locate(menu, pathname, params.toString(), context);
   const current = pathname === "/" ? menu.find((m) => m.key === params.get("m")) : located?.module;
   const currentArea = pathname === "/" ? (current?.areas.find((a) => a.key === params.get("a")) ?? current?.areas[0]) : located?.area;
 

@@ -2,10 +2,11 @@
 
 import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { useApp } from "@/components/app-provider";
 import { backHref, launcherHref, locate, menuFor } from "./menu";
+import { useMenuContext } from "./menu-context";
 import { Taskbar } from "./taskbar";
 
 /**
@@ -38,7 +39,9 @@ export function Shell({ children }: { children: ReactNode }) {
  * y de una pantalla del menú a los mosaicos de su área.
  */
 function BackBar({ pathname, menu }: { pathname: string; menu: ReturnType<typeof menuFor> }) {
-  const place = locate(menu, pathname);
+  const search = useSearchParams();
+  const context = useMenuContext();
+  const place = locate(menu, pathname, search.toString(), context);
   const href = backHref(menu, pathname, place);
 
   return (

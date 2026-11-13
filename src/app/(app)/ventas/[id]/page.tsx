@@ -9,7 +9,7 @@ import { PAYMENT_LABELS } from "@/lib/types";
 import { formatDate, formatDateTime, formatMoney, formatQty, todayIn } from "@/lib/utils";
 import { CollectButton } from "@/modules/cuentas-cobrar/components/collect-button";
 import { EmitButton } from "@/modules/facturacion/components/doc-actions";
-import { PrintButton, VoidSaleButton } from "@/modules/ventas/components/sale-actions";
+import { CreditNoteButton, PrintButton, VoidSaleButton, type ReturnableLine } from "@/modules/ventas/components/sale-actions";
 
 export const metadata: Metadata = { title: "Comprobante" };
 
@@ -47,6 +47,22 @@ export default async function SaleDetailPage({ params }: PageProps<"/ventas/[id]
   const voided = sale.status === "anulada";
   const gross = sale.items.reduce((a, i) => a + Number(i.total), 0);
 
+  // Devoluciones ya hechas con notas de crédito parciales (para saber cuánto queda por devolver)
+  const ncIds = edocs.filter((d) => d.kind === "nota_credito").map((d) => d.id);
+  const ncItems = ncIds.length ? ((await supabase.from("credit_note_items").select("product_id, quantity").in("e_document_id", ncIds)).data ?? []) : [];
+  const factor = gross > 0 ? Number(sale.total) / gross : 1;
+  const returnable: ReturnableLine[] = Object.values(
+    sale.items.reduce<Record<string, ReturnableLine>>((acc, i) => {
+      const prev = acc[i.product_id];
+      const sold = (prev?.sold ?? 0) + Number(i.quantity);
+      const value = (prev ? prev.price * prev.sold : 0) + Number(i.total) * factor;
+      acc[i.product_id] = { product_id: i.product_id, name: i.product_name, sku: i.sku, sold, returned: 0, price: Math.round((value / sold) * 100) / 100 };
+      return acc;
+    }, {}),
+  ).map((l) => ({ ...l, returned: ncItems.filter((c) => c.product_id === l.product_id).reduce((a, c) => a + Number(c.quantity), 0) }));
+  const hasDoc = edocs.some((d) => d.kind === "boleta" || d.kind === "factura");
+  const canCredit = !voided && hasDoc && (can("ventas", "delete") || can("facturacion", "create")) && returnable.some((l) => l.sold > l.returned);
+
   return (
     <div className="mx-auto max-w-md">
       <div className="no-print mb-4 flex items-center justify-between gap-2">
@@ -55,7 +71,17 @@ export default async function SaleDetailPage({ params }: PageProps<"/ventas/[id]
           Ventas
         </Link>
         <div className="flex gap-2">
-          {!voided && can("ventas", "delete") && <VoidSaleButton saleId={sale.id} number={sale.number} />}
+          {canCredit && (
+            <CreditNoteButton
+              saleId={sale.id}
+              number={sale.number}
+              lines={returnable}
+              credit={sale.payment_method === "credito"}
+              paymentMethod={sale.payment_method}
+              money={{ symbol: settings.currency_symbol }}
+            />
+          )}
+          {!voided && can("ventas", "delete") && ncIds.length === 0 && <VoidSaleButton saleId={sale.id} number={sale.number} />}
           <PrintButton />
         </div>
       </div>

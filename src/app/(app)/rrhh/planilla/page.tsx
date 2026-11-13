@@ -3,7 +3,8 @@ import { Banknote, History } from "lucide-react";
 import { ExportMenu } from "@/components/export-menu";
 import { buildQuery, FilterBar, param } from "@/components/filters";
 import { Badge, Card, CardHeader, EmptyState, Field, Input, PageHeader, StatCard, Table, Td, Th } from "@/components/ui";
-import { requireAccess } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getContext } from "@/lib/auth";
 import { fetchAll } from "@/lib/supabase/paginate";
 import type { Employee } from "@/modules/rrhh/types";
 import { formatDate, formatMoney, todayIn, zonedDayStart } from "@/lib/utils";
@@ -27,7 +28,9 @@ type Payment = {
 
 /** Pago mensual de sueldos y comisiones, con su asiento contable. */
 export default async function PayrollPage({ searchParams }: PageProps<"/rrhh/planilla">) {
-  const { supabase, settings, can } = await requireAccess("rrhh", "view");
+  // RRHH ve y prepara la planilla; Tesorería (Crear de Finanzas) la paga
+  const { supabase, settings, can } = await getContext();
+  if (!can("rrhh", "view") && !can("finanzas", "create")) redirect("/");
   const sp = await searchParams;
   const tz = settings.timezone;
   const today = todayIn(tz);
@@ -77,7 +80,14 @@ export default async function PayrollPage({ searchParams }: PageProps<"/rrhh/pla
 
   return (
     <>
-      <PageHeader title="Pago de planilla" description="Sueldos y comisiones del mes. Cada pago genera su asiento contable y su constancia en la auditoría.">
+      <PageHeader
+        title="Pago de planilla"
+        description={
+          can("finanzas", "create")
+            ? "Sueldos y comisiones del mes. Tesorería registra el pago: genera su asiento contable y su constancia en la auditoría."
+            : "Sueldos y comisiones del mes, preparados por Recursos Humanos. El pago lo registra Tesorería."
+        }
+      >
         <ExportMenu
           title="Pagos de planilla"
           subtitle={period}
@@ -112,7 +122,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/rrhh/pla
         </FilterBar>
       </Card>
 
-      <PayrollForm key={period} period={period} lines={lines} today={today} canPay={can("rrhh", "create")} />
+      <PayrollForm key={period} period={period} lines={lines} today={today} canPay={can("finanzas", "create")} />
 
       <Card className="mt-6">
         <CardHeader title="Pagos registrados" description={`Constancias del periodo ${period}, incluidas las anuladas.`} />
@@ -148,7 +158,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/rrhh/pla
                       </span>
                     )}
                   </Td>
-                  <Td className="text-right">{p.status === "pagado" && can("rrhh", "delete") && <VoidPayrollButton id={p.id} number={p.number} />}</Td>
+                  <Td className="text-right">{p.status === "pagado" && can("finanzas", "edit") && <VoidPayrollButton id={p.id} number={p.number} />}</Td>
                 </tr>
               ))}
             </tbody>

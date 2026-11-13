@@ -73,7 +73,8 @@ ok("vendedor: cotiza y registra clientes, no cobra en caja", has("vendedor", "Nu
 ok("cajero: vende, cobra órdenes y créditos, maneja su caja", ["Nueva Venta", "Cobrar Órdenes de Venta", "Cobrar Ventas al Crédito", "Caja: Apertura y Cierre"].every((l) => has("cajero", l)));
 ok("cajero: no ve contabilidad ni líneas de crédito", !has("cajero", "Libro Diario") && !has("cajero", "Líneas de Crédito"));
 ok("contador: asigna líneas de crédito y registra asientos", has("contador", "Líneas de Crédito") && has("contador", "Nuevo Asiento Manual"));
-ok("rrhh: paga la planilla", has("rrhh", "Pago de Planilla") && has("rrhh", "Nuevo Colaborador"));
+ok("rrhh: prepara la planilla pero no la paga", has("rrhh", "Planilla del Mes") && !has("rrhh", "Pago de Planilla") && has("rrhh", "Nuevo Colaborador"));
+ok("tesorería (contador) paga la planilla", has("contador", "Pago de Planilla"));
 ok("gerente general: consulta sin registrar ventas ni compras directas", !has("gerente", "Nueva Venta") && !has("gerente", "Nueva Solicitud de Pedido") && has("gerente", "Panel del Negocio"));
 ok("auditor: solo consulta (sin mosaicos «Nuevo …»)", [...tiles("auditor")].every((l) => !l.startsWith("Nuevo") && !l.startsWith("Nueva") && l !== "Inventario Físico" && l !== "Líneas de Crédito"), [...tiles("auditor")].filter((l) => /^Nuev/.test(l)).join(", "));
 ok("empleado: solo autoservicio", JSON.stringify([...tiles("empleado")].sort()) === JSON.stringify(["Calendario", "Mensajes de Tienda", "Mis Datos", "Preferencias de Estación de Trabajo"]), `→ ${[...tiles("empleado")].join(", ")}`);
@@ -104,5 +105,21 @@ for (const role of Object.keys(EXPECTED)) {
 ok("Atrás de cada mosaico vuelve a su área (no a otra pantalla)", wrongBack.length === 0, wrongBack.slice(0, 5).join(" | "));
 ok("Atrás del Kardex vuelve a MM › Inventario", backHref(menus.admin, "/inventario/movimientos", locate(menus.admin, "/inventario/movimientos")) === launcherHref("mm", "inventario"));
 ok("Atrás de un detalle vuelve a su listado", backHref(menus.admin, "/inventario/conteos/abc", locate(menus.admin, "/inventario/conteos/abc")) === "/inventario/conteos");
+// «Atrás» y pestaña activa cuando la misma pantalla está en varias áreas
+const adm = menus.admin;
+const where = (path, search = "", ctx = null) => { const p = locate(adm, path, search, ctx); return p ? `${p.module.key}/${p.area.key}` : "—"; };
+const cxcAreas = adm.flatMap((m) => m.areas.filter((a) => a.tiles.some((t) => t.href.split("?")[0] === "/cuentas-por-cobrar")).map((a) => `${m.key}/${a.key}`));
+ok("Cuentas por cobrar abierta desde FI vuelve a FI", cxcAreas.includes("fi/cobrar") && where("/cuentas-por-cobrar", "", { module: "fi", area: "cobrar" }) === "fi/cobrar", `áreas: ${cxcAreas.join(", ")}`);
+const otherCxc = cxcAreas.find((x) => x !== "fi/cobrar");
+if (otherCxc) {
+  const [om, oa] = otherCxc.split("/");
+  ok("Cuentas por cobrar abierta desde la otra área vuelve a esa área", where("/cuentas-por-cobrar", "", { module: om, area: oa }) === otherCxc);
+}
+ok("Cobrar órdenes de venta (Caja) vuelve a Caja", where("/cotizaciones", "estado=vigente", null).endsWith("/caja") || where("/cotizaciones", "estado=vigente", null).includes("caja"), where("/cotizaciones", "estado=vigente"));
+ok("Recibos de mercadería (histórico) vuelve a Almacén", where("/inventario/movimientos", "tipo=compra") === "mm/almacen", where("/inventario/movimientos", "tipo=compra"));
+ok("Órdenes de compra (histórico) abierta desde Compras vuelve a Compras", where("/compras", "", { module: "mm", area: "compras" }) === "mm/compras", where("/compras", "", { module: "mm", area: "compras" }));
+ok("Kardex sin contexto sigue en Inventario", where("/inventario/movimientos") === "mm/inventario");
+ok("Pago de planilla desde FI vuelve a Tesorería", where("/rrhh/planilla", "", { module: "fi", area: "tesoreria" }) === "fi/tesoreria");
+
 console.log(failed ? `\n${failed} PRUEBAS FALLARON` : "\nMENÚ POR ROL OK");
 process.exit(failed ? 1 : 0);

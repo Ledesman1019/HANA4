@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { DENIED, fail, friendlyError, getContext, success } from "@/lib/auth";
+import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import { crudSave } from "@/lib/crud/engine";
 import type { ActionResult } from "@/lib/types";
 import { firstIssue, isoDate, uuid } from "@/lib/validation";
@@ -23,7 +23,8 @@ const paySchema = z.object({
 /** Paga sueldo + comisiones del mes. Genera el asiento contable y queda en la auditoría. */
 export async function payPayroll(input: z.input<typeof paySchema>): Promise<ActionResult<{ count: number }>> {
   const { supabase, can } = await getContext();
-  if (!can("rrhh", "create")) return fail(DENIED);
+  // Separación de funciones: RRHH prepara la planilla, Tesorería registra el pago
+  if (!can("finanzas", "create")) return fail("El pago de la planilla lo registra Tesorería");
   const parsed = paySchema.safeParse(input);
   if (!parsed.success) return fail(firstIssue(parsed.error));
   const p = parsed.data;
@@ -36,7 +37,7 @@ export async function payPayroll(input: z.input<typeof paySchema>): Promise<Acti
 /** Anula un pago: extorna su asiento y libera las comisiones para volver a pagarlas. */
 export async function voidPayrollPayment(id: string, reason: string): Promise<ActionResult> {
   const { supabase, can } = await getContext();
-  if (!can("rrhh", "delete")) return fail(DENIED);
+  if (!can("finanzas", "edit")) return fail("La anulación de pagos de planilla la registra Tesorería");
   const parsed = z.object({ id: uuid, reason: z.string().trim().min(5, "Indica el motivo de la anulación").max(200) }).safeParse({ id, reason });
   if (!parsed.success) return fail(firstIssue(parsed.error));
   const { error } = await supabase.rpc("void_payroll_payment", { p_id: parsed.data.id, p_reason: parsed.data.reason });

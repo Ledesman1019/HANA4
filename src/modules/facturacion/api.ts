@@ -26,6 +26,13 @@ export async function loadBillingDocument(ctx: AppContext, id: string): Promise<
     reference = ref.data as { number: string; kind: EDocumentKind } | null;
   }
 
+  // Nota de crédito parcial: solo lo devuelto (si falta la migración 0012, la nota es siempre total)
+  let items = row.sale?.items ?? [];
+  if (row.kind === "nota_credito" && (row as { scope?: string }).scope === "parcial") {
+    const nc = await ctx.supabase.from("credit_note_items").select("sku, product_name, quantity, unit_price, total").eq("e_document_id", row.id);
+    items = (nc.data ?? []) as SaleItemRow[];
+  }
+
   const billing: BillingDocument = {
     kind: row.kind,
     number: row.number,
@@ -34,7 +41,7 @@ export async function loadBillingDocument(ctx: AppContext, id: string): Promise<
     taxRate: Number(settings.tax_rate),
     company: { name: settings.name, taxId: settings.tax_id, address: settings.address },
     customer: { docType: row.customer_doc_type, docNumber: row.customer_doc_number, name: row.customer_name },
-    items: (row.sale?.items ?? []).map((i) => ({
+    items: items.map((i) => ({
       sku: i.sku,
       description: i.product_name,
       quantity: Number(i.quantity),
@@ -120,4 +127,26 @@ export async function emitCreditNote(ctx: AppContext, saleId: string): Promise<v
   } catch (e) {
     console.error("[facturacion] emitCreditNote", e);
   }
+}
+
+/**
+ * Nota de crédito parcial (devolución de algunos productos): la registra la base
+ * (stock, dinero, contabilidad y comisión) y luego se envía como cualquier comprobante.
+ */
+export async function emitPartialCreditNote(
+  ctx: AppContext,
+  saleId: string,
+  items: { product_id: string; quantity: number }[],
+  reason: string,
+  refundMethod: string | null,
+): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+  const { data, error } = await ctx.supabase.rpc("issue_partial_credit_note", { p_sale: saleId, p_items: items, p_reason: reason, p_refund_method: refundMethod });
+  if (error) return { ok: false, message: missing(error) ? "Falta ejecutar la migración 0012 en Supabase" : (error.message ?? "No se pudo emitir la nota de crédito") };
+  const id = data as string;
+  try {
+    await sendDocument(ctx, id);
+  } catch (e) {
+    console.error("[facturacion] emitPartialCreditNote", e);
+  }
+  return { ok: true, id };
 }

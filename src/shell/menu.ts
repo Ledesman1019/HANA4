@@ -227,6 +227,12 @@ export const SAP_MODULES: SapModule[] = [
         ],
       },
       {
+        key: "tesoreria",
+        label: "Tesorería",
+        icon: Banknote,
+        tiles: [t("Pago de Planilla", "/rrhh/planilla", Banknote, "finanzas", "create")],
+      },
+      {
         key: "comprobantes",
         label: "Comprobantes",
         icon: Receipt,
@@ -270,7 +276,7 @@ export const SAP_MODULES: SapModule[] = [
           t("Colaboradores", "/rrhh", UsersRound, "rrhh"),
           t("Nuevo Colaborador", "/rrhh?nuevo=1", UserPlus, "rrhh", "create"),
           t("Comisiones", "/rrhh/comisiones", HandCoins, "rrhh"),
-          t("Pago de Planilla", "/rrhh/planilla", Banknote, "rrhh"),
+          t("Planilla del Mes", "/rrhh/planilla", Banknote, "rrhh"),
         ],
       },
     ],
@@ -321,21 +327,31 @@ export function menuFor(role: string, permissions: Permissions): SapModule[] {
 
 export const launcherHref = (module?: string, area?: string) => (module ? `/?m=${module}${area ? `&a=${area}` : ""}` : "/");
 
+/** Área desde la que se abrió la pantalla (la recuerda el lanzador al tocar un mosaico). */
+export type MenuContext = { module: string; area: string } | null;
+
 /**
  * Ubica una pantalla dentro del menú (para el botón «Atrás» y la pestaña activa).
- * Gana el mosaico cuya ruta coincide más exactamente con la actual.
+ * Gana el mosaico cuya ruta coincide más exactamente con la actual. Si la misma
+ * pantalla está en varias áreas (ej. Cuentas por Cobrar en SD y en FI), manda el
+ * área desde la que se abrió; si no se sabe, la que coincide con los filtros de la URL
+ * (ej. ?tipo=compra → Recibos de Mercadería en Almacén).
  */
-export function locate(menu: SapModule[], pathname: string): { module: SapModule; area: Area } | null {
+export function locate(menu: SapModule[], pathname: string, search = "", context: MenuContext = null): { module: SapModule; area: Area } | null {
+  const params = new URLSearchParams(search);
   let best: { module: SapModule; area: Area; score: number } | null = null;
   for (const sapModule of menu) {
     for (const area of sapModule.areas) {
       for (const tile of area.tiles) {
-        const path = tile.href.split("?")[0];
+        const [path, query = ""] = tile.href.split("?");
         if (path.startsWith("#")) continue;
         const exact = pathname === path;
         const nested = path !== "/" && pathname.startsWith(`${path}/`);
         if (!exact && !nested) continue;
-        const score = path.length + (exact ? 1000 : 0);
+        let score = path.length + (exact ? 1000 : 0);
+        if (context && context.module === sapModule.key && context.area === area.key) score += 300;
+        const wanted = [...new URLSearchParams(query)];
+        if (wanted.length > 0 && wanted.every(([k, v]) => params.get(k) === v)) score += 50;
         if (!best || score > best.score) best = { module: sapModule, area, score };
       }
     }

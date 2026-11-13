@@ -6,7 +6,7 @@ import { fail, friendlyError, getContext, success } from "@/lib/auth";
 import type { ActionResult } from "@/lib/types";
 import { amount, firstIssue, isoDate, quantity, uuid } from "@/lib/validation";
 // Ventas dispara la facturación a través de su servicio público (única dependencia entre módulos)
-import { emitCreditNote, emitForSale } from "@/modules/facturacion/api";
+import { emitCreditNote, emitForSale, emitPartialCreditNote } from "@/modules/facturacion/api";
 
 /* Las acciones validan la entrada y delegan en funciones SQL transaccionales,
  * que verifican permisos, stock, crédito y totales. El cliente nunca envía precios. */
@@ -69,6 +69,25 @@ export async function voidSale(saleId: string, reason: string): Promise<ActionRe
 
   revalidatePath("/", "layout");
   return success(undefined);
+}
+
+const creditNoteSchema = z.object({
+  sale_id: uuid,
+  items: z.array(z.object({ product_id: uuid, quantity })).min(1, "Elige al menos un producto").max(200),
+  reason: z.string().trim().min(5, "Describe el motivo (mínimo 5 caracteres)").max(300),
+  refund_method: z.enum(["efectivo", "tarjeta", "yape", "plin", "transferencia"]).nullable(),
+});
+
+/** Nota de crédito parcial: devuelve solo algunos productos o parte de sus cantidades. */
+export async function issuePartialCreditNote(input: z.input<typeof creditNoteSchema>): Promise<ActionResult<{ id: string }>> {
+  const parsed = creditNoteSchema.safeParse(input);
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const v = parsed.data;
+  const ctx = await getContext();
+  const res = await emitPartialCreditNote(ctx, v.sale_id, v.items, v.reason, v.refund_method);
+  if (!res.ok) return fail(res.message);
+  revalidatePath("/", "layout");
+  return success({ id: res.id });
 }
 
 /* ---------- Cotizaciones ---------- */
