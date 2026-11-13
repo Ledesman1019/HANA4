@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Building2, Check, KeyRound, Loader2, UserRound, X } from "lucide-react";
+import { Building2, Check, Eye, EyeOff, KeyRound, Loader2, UserRound, X } from "lucide-react";
 import { login } from "@/modules/auth/actions";
 import { exitApp } from "@/lib/exit";
 
@@ -17,6 +17,7 @@ const classicButton =
 export function LoginForm({ central }: { central: string }) {
   const [state, action, pending] = useActionState(login, undefined);
   const [help, setHelp] = useState(false);
+  const [show, setShow] = useState(false);
 
   return (
     <form action={action} className="space-y-3" onReset={() => setHelp(false)}>
@@ -36,7 +37,18 @@ export function LoginForm({ central }: { central: string }) {
         </label>
         <div className={box}>
           <KeyRound className={icon} />
-          <input id="login-password" name="password" type="password" autoComplete="current-password" required className={input} />
+          <input id="login-password" name="password" type={show ? "text" : "password"} autoComplete="current-password" required className={input} />
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            aria-label={show ? "Ocultar clave" : "Mostrar clave"}
+            aria-pressed={show}
+            aria-controls="login-password"
+            title={show ? "Ocultar clave" : "Mostrar clave"}
+            className="flex h-full shrink-0 cursor-pointer items-center px-2.5 text-slate-500 hover:text-slate-800"
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
